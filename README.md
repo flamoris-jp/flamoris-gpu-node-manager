@@ -1,30 +1,78 @@
-# FLAMORIS Repository Template
+# FLAMORIS GPU Node Manager
 
-Standard repository template for FLAMORIS projects.
+A local Linux service for safely handing one GPU resource class between configured
+AI runtimes. CLI, HTTP/Web and MCP use the same `RuntimeManager` implementation and
+host-wide transition lock. systemd supervises runtime processes.
 
-Use this repository as the starting point for new FLAMORIS repositories. After creating a repository from this template, replace the placeholders in this README with project-specific information and add only the language, runtime, build, and deployment files the project actually needs.
+## Quick start
 
-## Project
+Requires Python 3.11+ and Linux with systemd/procfs for actual runtime control.
+Tests use synthetic runtimes and do not require a GPU or systemd.
 
-**Name:** `<PROJECT_NAME>`
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/gpu-node-manager --help
+.venv/bin/python -m pytest -q
+.venv/bin/python -m ruff check .
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m mypy src
+```
 
-**Description:** `<PROJECT_DESCRIPTION>`
+`config/examples/` contains disabled illustrative HTTP and TCP profiles. Copy and
+adapt them to installed services; verify release matchers against actual processes
+before enabling. No runtime or model is installed by this package.
 
-## Getting started
+The CLI defaults to `/etc/flamoris-gpu-node-manager/runtimes` and the lock
+`/run/flamoris-gpu-node-manager/transition.lock`. All adapters on a node **must use
+identical profile directories and lock paths**, including during upgrades.
+These are defaults for a new deployment, not claims about an existing host.
 
-Document the real setup, build, test, and run commands for this repository here.
+```bash
+.venv/bin/gpu-node-manager --config-dir config/examples runtime list
+.venv/bin/gpu-node-manager --config-dir config/examples system status
+.venv/bin/gpu-node-manager --config-dir config/examples serve
+.venv/bin/gpu-node-manager --config-dir config/examples mcp
+.venv/bin/gpu-node-manager --config-dir config/examples mcp --transport streamable-http
+```
 
-Do not copy commands from another FLAMORIS project unless they have been verified against the current implementation.
+Web defaults to `127.0.0.1:8090`; MCP HTTP defaults to `127.0.0.1:8766/mcp`.
+Startup observes state and never activates a runtime. Actual operations require
+appropriate host permissions. HTTP/MCP have no application authentication:
+keep listeners on loopback and restrict local callers in privileged deployments.
+A deployment overlay owns service accounts, privilege grants and network policy.
 
-## Repository principles
+## Identity configuration
 
-- Keep the repository focused on one clear responsibility.
-- Treat current code, tests, documentation, and repository configuration as the source of truth.
-- Prefer explicit boundaries over speculative abstractions.
-- Keep secrets, credentials, tokens, and private data out of source control and logs.
-- Add tests where practical and document externally visible behavior.
-- Inspect existing FLAMORIS shared packages before introducing duplicate infrastructure.
-- AI-assisted development is welcome; submitted changes still require human review and responsibility.
+```yaml
+node:
+  id: render
+  display_name: Render Node
+manager:
+  display_name: Render Manager
+```
+
+Pass `--identity-config path/to/identity.yaml` **before** the subcommand. Omission
+uses `local` / `GPU Node` / `GPU Node Manager`; an explicitly missing or invalid
+file fails startup. Unknown and duplicate fields are rejected. Names are bounded
+plain text, not HTML or configuration templates. Restart to load changes.
+
+Identity appears in the Web title/header/status label, CLI `system status`, MCP
+server name and `system.status`. It never changes runtime IDs, endpoints, lock
+paths, service selection or transition behavior.
+
+## API and boundaries
+
+- CLI: `runtime list`, `runtime status [id]`, `runtime activate id`,
+  `runtime stop [id]`, `system status`, `serve`, `mcp`.
+- HTTP: `GET /api/status`, `/api/runtimes`, `/api/runtimes/{id}`, `/api/telemetry`;
+  `POST /api/runtimes/{id}/activate` and `/stop` with an empty body and
+  `X-GPU-Node-Manager-Intent: runtime-mutation` header.
+- MCP: `runtime.list`, `runtime.status`, `runtime.activate`, `runtime.stop`,
+  `system.status`; mutation arguments use `runtime_id`.
+
+No arbitrary shell/service control, model downloads or generation-job management.
+See [architecture](docs/ARCHITECTURE.md) and [deployment contract](docs/DEPLOYMENT.md).
 
 ## FLAMORIS
 

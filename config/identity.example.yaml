@@ -1,0 +1,5 @@
+node:
+  id: local
+  display_name: GPU Node
+manager:
+  display_name: GPU Node Manager

@@ -25,3 +25,12 @@ temp/
 .cache/
 
 # Language- and runtime-specific ignores belong in each generated repository.
+
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+*.egg-info/

@@ -1,0 +1,21 @@
+# Illustrative only; verify service and ownership matchers before enabling.
+id: example-tcp-runtime
+display_name: Example TCP runtime
+service: example-tcp-runtime.service
+resource_class: gpu-heavy
+enabled: false
+health:
+  type: tcp
+  host: 127.0.0.1
+  port: 9002
+release:
+  type: process
+  processes:
+  - name: example-server
+    cmdline_contains:
+    - /opt/example/tcp/server
+timeouts:
+  stop_seconds: 30
+  release_seconds: 60
+  start_seconds: 60
+  health_seconds: 60

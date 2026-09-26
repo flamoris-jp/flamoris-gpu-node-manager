@@ -60,3 +60,18 @@ Do not add third-party code, models, model weights, datasets, fonts, media, or g
 FLAMORIS does not provide guaranteed individual support.
 
 Use the repository documentation, Issues, tests, logs, and source code as primary references when diagnosing problems.
+
+## GPU Node Manager invariants
+
+- Read README, docs/ARCHITECTURE.md and docs/DEPLOYMENT.md before changing adapters.
+- RuntimeManager is the sole state/transition implementation. All adapters use it.
+- Serialize mutations with one host-wide lock; presentation identity cannot select a lock.
+- Stop → inactive → bounded owned-process release → start → active → health → READY.
+- Never report READY or successful release when inspection fails.
+- systemd remains the supervisor. No shell API, arbitrary service API or runtime-ID branches.
+- This repository contains synthetic examples and host-independent tests only.
+  Deployment overlays own real profiles, host paths, services, credentials and topology.
+- The shared .NET logging/MCP packages do not apply to this Python implementation.
+  Keep standard logging and the Python MCP SDK; do not vendor shared source.
+- Preserve thin CLI/HTTP/MCP adapters, explicit failure states and telemetry degradation.
+- Run pytest, ruff check/format and mypy src; do not auto-merge or deploy from a migration PR.
