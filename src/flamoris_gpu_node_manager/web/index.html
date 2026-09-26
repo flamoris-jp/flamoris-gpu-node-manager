@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101411">
+    <title>{{manager_name}}</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">{{node_mark}}</span>
+          <div>
+            <p class="eyebrow">FLAMORIS COMPUTE</p>
+            <h1>{{manager_name}}</h1>
+          </div>
+        </div>
+        <div id="connection" class="connection pending">
+          <span class="connection-dot"></span>
+          <span id="node-name">{{node_name}}</span>
+          <span>CONNECTING</span>
+        </div>
+      </header>
+
+      <section class="ownership" aria-labelledby="ownership-title">
+        <div>
+          <p id="ownership-title" class="eyebrow">GPU OWNER</p>
+          <p id="current-runtime" class="owner-value">—</p>
+        </div>
+        <p id="refreshed" class="refreshed">Waiting for manager status</p>
+      </section>
+
+      <section class="panel" aria-labelledby="gpu-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">HARDWARE</p>
+            <h2 id="gpu-title">GPU telemetry</h2>
+          </div>
+          <p id="telemetry-note" class="muted"></p>
+        </div>
+        <div id="telemetry" class="metrics"></div>
+      </section>
+
+      <section id="transition" class="transition" aria-live="polite"></section>
+
+      <section class="panel runtimes-panel" aria-labelledby="runtimes-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">RUNTIME REGISTRY</p>
+            <h2 id="runtimes-title">Available engines</h2>
+          </div>
+          <p class="muted">One heavyweight runtime at a time</p>
+        </div>
+        <div id="runtimes" class="runtime-grid"></div>
+      </section>
+
+      <p id="notice" class="notice" aria-live="assertive"></p>
+    </main>
+    <script src="./app.js" defer></script>
+  </body>
+</html>

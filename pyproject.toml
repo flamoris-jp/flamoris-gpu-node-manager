@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "flamoris-gpu-node-manager"
+version = "0.1.0"
+license = "Apache-2.0"
+description = "Safe, local runtime switching for the GPU node"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "mcp>=2.2,<3",
+  "PyYAML>=6.0.2,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28,<1",
+  "mypy>=1.15,<2",
+  "pytest>=8.3,<9",
+  "ruff>=0.11,<1",
+  "types-PyYAML>=6.0.12.20241230",
+]
+
+[project.scripts]
+gpu-node-manager = "flamoris_gpu_node_manager.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/flamoris_gpu_node_manager"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["flamoris_gpu_node_manager"]
