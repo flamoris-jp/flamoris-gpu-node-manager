@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a reproducible problem in this repository.
+title: "[Bug] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve FLAMORIS. Please do not include secrets, credentials, tokens, private keys, or other sensitive information.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable reproduction you can.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include relevant OS, version, runtime, hardware, provider, or configuration details. Omit sensitive information.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add logs, screenshots, links, or other non-sensitive context if useful.
