@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 import threading
 import time
@@ -289,6 +290,8 @@ def test_web_ui_assets_render_runtime_cards_from_api() -> None:
     with running_server(manager) as base:
         with urllib.request.urlopen(f"{base}/", timeout=2) as response:
             page = response.read().decode()
+            assert "frame-ancestors 'none'" in response.headers["Content-Security-Policy"]
+            assert response.headers["X-Frame-Options"] == "DENY"
         with urllib.request.urlopen(f"{base}/app.js", timeout=2) as response:
             script = response.read().decode()
 
@@ -303,6 +306,55 @@ def test_web_ui_assets_render_runtime_cards_from_api() -> None:
     assert "runtime.id" in script
     assert "comfyui" not in script.lower()
     assert "yue2" not in script.lower()
+
+
+@pytest.mark.parametrize(
+    "method,path", [("GET", "/api/status"), ("POST", "/api/runtimes/alpha/activate")]
+)
+@pytest.mark.parametrize(
+    "host",
+    [None, "evil.example", "127.0.0.1.evil.example", "localhost:1", "127.0.0.1:8090@evil.example"],
+)
+def test_untrusted_host_rejected_before_observation_or_mutation(method, path, host) -> None:
+    manager, systemd, _, _ = manager_fixture()
+    with running_server(manager) as base:
+        connection = http.client.HTTPConnection(base.removeprefix("http://"), timeout=2)
+        connection.putrequest(method, path, skip_host=True)
+        if host is not None:
+            connection.putheader("Host", host)
+        connection.putheader("X-GPU-Node-Manager-Intent", "runtime-mutation")
+        connection.endheaders()
+        response = connection.getresponse()
+        assert response.status == 421
+        response.read()
+        connection.close()
+    assert not systemd.events
+
+
+def test_duplicate_host_and_absolute_request_targets_rejected() -> None:
+    manager, systemd, _, _ = manager_fixture()
+    with running_server(manager) as base:
+        authority = base.removeprefix("http://")
+        for target, duplicate, status in [
+            ("/api/status", True, 421),
+            (base + "/api/status", False, 400),
+        ]:
+            connection = http.client.HTTPConnection(authority, timeout=2)
+            connection.putrequest("GET", target, skip_host=True)
+            connection.putheader("Host", authority)
+            if duplicate:
+                connection.putheader("Host", authority)
+            connection.endheaders()
+            response = connection.getresponse()
+            assert response.status == status
+            response.read()
+            connection.close()
+        request = urllib.request.Request(
+            base + "/api/status", headers={"Host": "localhost:" + authority.rsplit(":", 1)[1]}
+        )
+        with urllib.request.urlopen(request, timeout=2) as response:
+            assert response.status == 200
+    assert not systemd.events
 
 
 @pytest.mark.parametrize(

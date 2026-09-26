@@ -67,6 +67,15 @@ class NodeHttpServer(ThreadingHTTPServer):
         self._active_mutations = 0
         self._last_refresh = 0.0
         super().__init__(address, NodeRequestHandler)
+        # Exact authorities, including the actual port (also for ephemeral test ports).
+        # Reverse proxies must rewrite Host after enforcing their own access policy.
+        hosts = {"127.0.0.1", "localhost"}
+        if address[0] not in {"0.0.0.0", "::", ""}:
+            hosts.add(address[0].lower())
+        port = self.server_address[1]
+        self.trusted_authorities = {f"{host}:{port}" for host in hosts}
+        if port == 80:
+            self.trusted_authorities.update(hosts)
 
     def snapshot(self) -> SystemStatus:
         """Refresh real state when idle without erasing an in-flight transition."""
@@ -99,6 +108,21 @@ class NodeRequestHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args: object) -> None:
         _LOG.info("http %s - %s", self.address_string(), format % args)
+
+    def parse_request(self) -> bool:
+        if not super().parse_request():
+            return False
+        hosts = self.headers.get_all("Host", [])
+        if len(hosts) != 1 or hosts[0].lower() not in self.server.trusted_authorities:
+            self.close_connection = True
+            self._send_error(HTTPStatus.MISDIRECTED_REQUEST, "untrusted_host", "untrusted Host")
+            return False
+        # This origin server does not accept proxy-style absolute-form targets.
+        if not self.path.startswith("/") or self.path.startswith("//"):
+            self.close_connection = True
+            self._send_error(HTTPStatus.BAD_REQUEST, "invalid_request", "invalid request target")
+            return False
+        return True
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         path = urlsplit(self.path).path
@@ -318,7 +342,11 @@ class NodeRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Content-Security-Policy", "default-src 'self'; connect-src 'self'")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; connect-src 'self'; frame-ancestors 'none'",
+        )
+        self.send_header("X-Frame-Options", "DENY")
         self.end_headers()
         self.wfile.write(body)
 

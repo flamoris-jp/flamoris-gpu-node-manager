@@ -7,11 +7,19 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
+from typing import Any
 
 from flamoris_gpu_node_manager.application.ports import SystemdPort
 from flamoris_gpu_node_manager.domain.models import RuntimeProfile, ServiceState
 
 from .resource import ProcessResourceAdapter
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(
+        self, req: Any, fp: Any, code: int, msg: str, headers: Any, newurl: str
+    ) -> None:
+        return None
 
 
 class HealthAdapter:
@@ -31,6 +39,8 @@ class HealthAdapter:
         self._probe_timeout = probe_timeout
         self._monotonic = monotonic
         self._sleep = sleep
+        # Never send loopback probes via an environment proxy or a redirect target.
+        self._http = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
 
     def check(self, profile: RuntimeProfile) -> bool:
         config = profile.health
@@ -53,8 +63,8 @@ class HealthAdapter:
         if config.type == "http":
             assert config.url is not None
             try:
-                with urllib.request.urlopen(config.url, timeout=self._probe_timeout) as response:
-                    return 200 <= int(response.status) < 400
+                with self._http.open(config.url, timeout=self._probe_timeout) as response:
+                    return 200 <= int(response.status) < 300
             except (OSError, urllib.error.URLError):
                 return False
         raise RuntimeError(f"validated health type has no adapter: {config.type}")

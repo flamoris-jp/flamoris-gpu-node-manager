@@ -3,6 +3,9 @@
 A local Linux service for safely handing one GPU resource class between configured
 AI runtimes. CLI, HTTP/Web and MCP use the same `RuntimeManager` implementation and
 host-wide transition lock. systemd supervises runtime processes.
+Each process has its own manager and transition progress. Status is reconstructed
+from host services/processes; a missing local transition does not mean another
+entry point is idle. The shared lock serializes mutations across processes.
 
 ## Quick start
 
@@ -41,6 +44,11 @@ Startup observes state and never activates a runtime. Actual operations require
 appropriate host permissions. HTTP/MCP have no application authentication:
 keep listeners on loopback and restrict local callers in privileged deployments.
 A deployment overlay owns service accounts, privilege grants and network policy.
+Web requests require exactly one trusted Host: the bound host, `127.0.0.1`, or
+`localhost`, with the listening port (port 80 may be omitted). Wildcard bind
+addresses are not trusted hosts. A reverse proxy must rewrite Host to the backend
+authority **after** enforcing client authentication or a source allowlist.
+Host validation and the intent header are not user authentication.
 
 ## Identity configuration
 

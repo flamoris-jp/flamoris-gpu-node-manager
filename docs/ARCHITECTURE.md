@@ -25,6 +25,8 @@ control with unavailable telemetry; no vendor-specific monitoring is claimed.
 Health types: http (loopback URL), tcp (loopback host/port), process,
 systemd-active, none. Only use a probe that truthfully represents readiness for
 that runtime; an open TCP port does not prove that model weights have loaded.
+HTTP probes bypass environment proxies, reject all redirects and accept only
+direct 2xx responses from the configured endpoint.
 GPU-heavy profiles cannot disable resource release checks.
 
 NodeIdentity is immutable presentation data loaded independently of profiles.

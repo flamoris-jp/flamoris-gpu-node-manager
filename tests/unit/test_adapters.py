@@ -143,3 +143,70 @@ def test_file_transition_lock_recreates_runtime_directory_after_boot(tmp_path: P
     assert not path.parent.exists()
     with FileTransitionLock(path).hold(0.1):
         assert path.is_file()
+
+
+def test_lock_restricts_permissions_without_replacing_inode(tmp_path: Path) -> None:
+    path = tmp_path / "transition.lock"
+    path.touch(mode=0o666)
+    path.chmod(0o666)
+    inode = path.stat().st_ino
+    with FileTransitionLock(path).hold(0.1):
+        assert path.stat().st_mode & 0o777 == 0o600
+        assert path.stat().st_ino == inode
+
+
+def test_lock_rejects_symlink_and_releases_thread_guard(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.write_text("unchanged")
+    path = tmp_path / "transition.lock"
+    path.symlink_to(target)
+    lock = FileTransitionLock(path)
+    with pytest.raises(OSError), lock.hold(0.1):
+        pass
+    assert target.read_text() == "unchanged"
+    path.unlink()
+    with lock.hold(0.1):
+        pass
+
+
+@pytest.mark.parametrize("status", [200, 204, 300, 301, 302, 303, 304, 307, 308, 500])
+@pytest.mark.parametrize("destination", ["/ready", "http://external.example/ready"])
+def test_http_health_requires_direct_success_without_redirects(status, destination, monkeypatch):
+    import threading
+    from dataclasses import replace
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from tests.helpers import FakeSystemd
+
+    requests = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            requests.append(self.path)
+            self.send_response(status if self.path == "/health" else 200)
+            self.send_header("Location", destination)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        # A deliberately unusable proxy must not redirect a loopback probe either.
+        monkeypatch.setenv("http_proxy", "http://127.0.0.1:1")
+        monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:1")
+        monkeypatch.setenv("no_proxy", "")
+        monkeypatch.setenv("NO_PROXY", "")
+        adapter = HealthAdapter(FakeSystemd({}, []), ProcessResourceAdapter(ProcessSource(())))
+        runtime = replace(
+            profile("alpha"),
+            health=HealthConfig(type="http", url=f"http://127.0.0.1:{server.server_port}/health"),
+        )
+        assert adapter.check(runtime) is (200 <= status < 300)
+        assert requests == ["/health"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()

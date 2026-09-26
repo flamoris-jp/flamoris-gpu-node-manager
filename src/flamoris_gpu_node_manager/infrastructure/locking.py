@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import fcntl
+import os
+import stat
 import threading
 import time
 from collections.abc import Callable, Iterator
@@ -35,8 +37,18 @@ class FileTransitionLock:
             raise TransitionBusyError("another runtime transition is in progress")
         handle = None
         try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            handle = self._path.open("a+", encoding="utf-8")
+            self._path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            descriptor = os.open(
+                self._path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600
+            )
+            handle = os.fdopen(descriptor, "a+", encoding="utf-8")
+            info = os.fstat(handle.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_nlink != 1:
+                raise OSError(
+                    "transition lock must be a singly linked regular file owned by caller"
+                )
+            # Tighten legacy permissions in place; never replace the shared inode.
+            os.fchmod(handle.fileno(), 0o600)
             deadline = self._monotonic() + timeout
             while True:
                 try:

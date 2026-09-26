@@ -15,6 +15,18 @@ All entry points must pass the same `--config-dir` and `--lock-path`; an existin
 node should retain its existing lock during migration. Avoid deleting/recreating
 the lock inode while any manager process remains alive. A supervisor's runtime
 directory must be preserved across restarts when shared by multiple adapters.
+Run mutation entry points under the same OS identity. The lock is opened without
+following symlinks, must be a singly linked regular file owned by that identity,
+and is restricted to mode 0600 in place, including legacy files. Keep its parent
+directory protected from untrusted writers; do not replace an existing inode.
+
+The Web listener validates one exact Host authority before routing any request.
+Use its bound hostname/address or localhost/127.0.0.1 and the actual listening port;
+wildcard bind addresses do not disable this check. Reverse proxies must enforce
+authentication or a verified source allowlist before rewriting Host, for example
+`proxy_set_header Host 127.0.0.1:8090;` for the default listener. Never expose the
+unauthenticated control surface merely by forwarding to loopback. The intent
+header prevents ordinary cross-origin browser mutations; it is not access control.
 
 Example invocation shape (replace paths with verified deployment values):
 
