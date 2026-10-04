@@ -9,6 +9,11 @@ The separate [protected content measurement primitive](CONTENT_MEASUREMENT.md)
 measures actual bytes and rejects unsafe roots/ancestors. It is also a prerequisite,
 not a publisher or proof of complete runtime/lifetime coverage.
 
+The [runtime-owned ComfyUI binding collector](RUNTIME_CAPTURE.md) observes actual
+initialized registrations and loader roots inside the provider process without
+importing runtime packages or invoking node interfaces. It is not connected to
+startup/publication and cannot certify complete closure or grant qualification.
+
 ## Optional configuration
 
 A runtime profile may add one field:
