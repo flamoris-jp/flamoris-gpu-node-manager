@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from flamoris_gpu_node_manager.application.manager import RuntimeManager
+from flamoris_gpu_node_manager.application.ports import EvidenceInvalidationPort
 from flamoris_gpu_node_manager.domain.errors import ProfileValidationError
 from flamoris_gpu_node_manager.infrastructure.config import load_registry
 from flamoris_gpu_node_manager.infrastructure.health import HealthAdapter
@@ -22,6 +23,7 @@ def build_manager(
     *,
     lock_path: Path = DEFAULT_TRANSITION_LOCK_PATH,
     lock_timeout: float = 5.0,
+    evidence_lifecycle: EvidenceInvalidationPort | None = None,
 ) -> RuntimeManager:
     registry = load_registry(config_directory)
     if any(
@@ -50,5 +52,5 @@ def build_manager(
         health,
         FileTransitionLock(lock_path),
         lock_timeout=lock_timeout,
-        evidence_invalidator=invalidator,
+        evidence_invalidator=invalidator if evidence_lifecycle is None else evidence_lifecycle,
     )

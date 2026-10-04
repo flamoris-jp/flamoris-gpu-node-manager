@@ -51,3 +51,10 @@ No adapter adds another transition or qualification state authority. Health READ
 continues to mean lifecycle readiness, not Workflow qualification. The port never
 publishes a manifest; external lifecycle/content mutation and trusted measurement
 remain prerequisites described in [RUNTIME_EVIDENCE.md](RUNTIME_EVIDENCE.md).
+
+Trusted deployments may compose [RuntimeEvidenceLifecycle](EVIDENCE_LIFECYCLE.md)
+through the same port. It locks all affected slots before invalidating them and
+publishes eligible measured runtimes after successful existing transitions while
+retaining those leases. It does not change RuntimeManager authority or install
+external startup/restart/maintenance bindings. Default bootstrap stays
+invalidation-only; explicit trusted composition owns continual renewal.
