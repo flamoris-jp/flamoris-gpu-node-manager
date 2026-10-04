@@ -116,4 +116,3 @@ def _resolve_json_pointer(document: object, pointer: str) -> object:
         else:
             raise KeyError(token)
     return current
-
