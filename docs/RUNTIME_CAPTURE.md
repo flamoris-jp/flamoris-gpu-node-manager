@@ -38,9 +38,14 @@ class aliases) are preserved as unknown without accessing their attributes.
 They cannot be used as registered-node file origins or complete closure evidence.
 
 Paths are converted to absolute lexical paths relative to the observed working
-directory. Symlinks are not resolved or silently accepted as protected content.
+directory, preserving `..` components, including those following symlinks.
+Neither `abspath`/`normpath` nor filesystem resolution is used: collapsing a
+symlink followed by `..` can record a different origin than the OS actually reads.
+Symlinks are not resolved or silently accepted as protected content.
 All captured file/root paths still require descriptor-anchored protection and
-actual byte measurement by the trusted authority.
+actual byte measurement by the trusted authority. The current protected content
+measurer rejects `..` paths and symlinks; callers must not normalize the captured
+path to bypass that rejection or treat this observation as qualification.
 
 ## Consistency, limits and failure
 

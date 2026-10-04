@@ -77,9 +77,10 @@ class _Budget:
 
     def path(self, value: object, cwd: Path) -> Path:
         text = self.text(value, empty=True)
-        # Preserve lexical paths. Protection/links/file contents are checked by
-        # the authority's measurer later; resolving here would hide aliases.
-        return Path(os.path.abspath(cwd / text))
+        # Anchor relative paths without collapsing '..': after a symlink it can
+        # select a different parent than lexical normalization would record.
+        # Protection/links/file contents are checked by the authority later.
+        return cwd / text
 
 
 def _dictionary(value: object, budget: _Budget) -> dict[object, object]:

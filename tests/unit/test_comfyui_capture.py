@@ -369,3 +369,99 @@ def test_nonclass_registry_entry_cannot_invoke_class_getter(runtime):
     nodes.NODE_CLASS_MAPPINGS["Image"] = NotClass()
     with pytest.raises(cc.RuntimeCaptureError):
         capture(runtime)
+
+
+@pytest.mark.parametrize("relative", [False, True])
+def test_symlink_parent_components_preserved_in_all_path_fields(runtime, monkeypatch, relative):
+    modules, _, folders, root = runtime
+    core = root / "core"
+    core.mkdir()
+    external = root / "external"
+    (external / "child").mkdir(parents=True)
+    (core / "link").symlink_to(external / "child", target_is_directory=True)
+    (core / "origin.py").write_text("lexically collapsed file")
+    (external / "origin.py").write_text("actual OS lookup")
+    lexical_root = core / "link/.."
+    lexical_file = lexical_root / "origin.py"
+    assert lexical_file.read_text() == "actual OS lookup"
+    assert Path(os.path.abspath(lexical_file)).read_text() == "lexically collapsed file"
+    monkeypatch.chdir(root)
+    spelling = str(lexical_file.relative_to(root)) if relative else str(lexical_file)
+    root_spelling = str(lexical_root.relative_to(root)) if relative else str(lexical_root)
+    modules["nodes"] = source_module("nodes", spelling)
+    modules["nodes"].NODE_CLASS_MAPPINGS = runtime[1].NODE_CLASS_MAPPINGS
+    namespace = ModuleType("namespace")
+    namespace.__path__ = [root_spelling]
+    modules["namespace"] = namespace
+    folders.folder_names_and_paths["checkpoints"] = ([root_spelling], {".bin"})
+    with (
+        patch.object(sys, "modules", modules),
+        patch.object(sys, "path", ["", root_spelling]),
+        patch.object(sys, "executable", spelling),
+        patch.object(builtins, "open", side_effect=AssertionError("file read")),
+        patch.object(os, "open", side_effect=AssertionError("fd open")),
+        patch.object(os, "stat", side_effect=AssertionError("stat")),
+        patch.object(os, "readlink", side_effect=AssertionError("readlink")),
+    ):
+        observed = cc.capture_comfyui_bindings()
+    assert observed.cwd == root
+    assert observed.executable == lexical_file
+    assert observed.search_paths == (root, lexical_root)
+    assert observed.nodes["Image"].file == lexical_file
+    assert observed.modules["nodes"].kind == "file"
+    assert observed.modules["nodes"].file == lexical_file
+    assert observed.modules["namespace"].namespace_paths == (lexical_root,)
+    assert observed.model_folders["checkpoints"].paths == (lexical_root,)
+
+
+@pytest.mark.parametrize("field", ["module", "models", "search", "executable", "namespace"])
+def test_parent_component_spelling_change_between_passes_refused(runtime, monkeypatch, field):
+    modules, nodes, folders, root = runtime
+    lexical = str(root / "link/../origin.py")
+    collapsed = os.path.abspath(lexical)
+    namespace = ModuleType("namespace")
+    namespace.__path__ = [lexical]
+    modules["namespace"] = namespace
+    nodes.__file__ = lexical
+    nodes.__spec__.origin = lexical
+    folders.folder_names_and_paths["checkpoints"] = ([lexical], {".bin"})
+    original = cc._collect
+    calls = 0
+
+    def collect(budget):
+        nonlocal calls
+        result = original(budget)
+        calls += 1
+        if calls == 1:
+            if field == "module":
+                nodes.__file__ = collapsed
+                nodes.__spec__.origin = collapsed
+            elif field == "models":
+                folders.folder_names_and_paths["checkpoints"][0][0] = collapsed
+            elif field == "search":
+                sys.path[0] = collapsed
+            elif field == "executable":
+                sys.executable = collapsed
+            else:
+                namespace.__path__[0] = collapsed
+        return result
+
+    monkeypatch.setattr(cc, "_collect", collect)
+    with (
+        patch.object(sys, "modules", modules),
+        patch.object(sys, "path", [lexical]),
+        patch.object(sys, "executable", lexical),
+        pytest.raises(cc.RuntimeCaptureError, match="^runtime binding capture unavailable$"),
+    ):
+        cc.capture_comfyui_bindings()
+
+
+@pytest.mark.parametrize(
+    "value", ["", "models", "../models", "link/../models", "/other/link/../models"]
+)
+def test_path_anchors_without_collapsing_parent_components(tmp_path, value):
+    observed = cc._Budget().path(value, tmp_path)
+    assert observed.is_absolute()
+    assert observed == tmp_path / value
+    if ".." in value.split("/"):
+        assert ".." in observed.parts
