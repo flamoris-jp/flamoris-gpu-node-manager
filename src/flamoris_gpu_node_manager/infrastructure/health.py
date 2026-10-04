@@ -78,8 +78,7 @@ class HealthAdapter:
                         return True
                     length = response.headers.get("Content-Length")
                     if length is not None and (
-                        not re.fullmatch(r"[0-9]+", length)
-                        or int(length) > _MAX_HEALTH_BODY_BYTES
+                        not re.fullmatch(r"[0-9]+", length) or int(length) > _MAX_HEALTH_BODY_BYTES
                     ):
                         return False
                     body = b""
