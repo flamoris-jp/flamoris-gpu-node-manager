@@ -5,6 +5,10 @@ It does **not** complete that issue or establish `exclusive-mutation-lock-v1`
 continuity. Do not enable Generation qualification using a guessed, hand-authored
 or health/stat-derived manifest.
 
+The separate [protected content measurement primitive](CONTENT_MEASUREMENT.md)
+measures actual bytes and rejects unsafe roots/ancestors. It is also a prerequisite,
+not a publisher or proof of complete runtime/lifetime coverage.
+
 ## Optional configuration
 
 A runtime profile may add one field:
