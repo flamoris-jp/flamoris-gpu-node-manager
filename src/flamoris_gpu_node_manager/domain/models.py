@@ -109,4 +109,3 @@ class SystemStatus:
             "anomalies": list(self.anomalies),
             "runtimes": [runtime.to_dict() for runtime in self.runtimes],
         }
-
