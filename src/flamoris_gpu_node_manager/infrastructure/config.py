@@ -267,4 +267,3 @@ def load_registry(directory: Path) -> RuntimeRegistry:
         seen[profile.id] = path
         profiles.append(profile)
     return RuntimeRegistry(profiles)
-
