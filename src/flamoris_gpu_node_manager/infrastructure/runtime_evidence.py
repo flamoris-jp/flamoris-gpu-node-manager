@@ -289,7 +289,8 @@ class FileEvidenceInvalidator:
         old = _read_json(directory, name + ".epoch.json")
         counter = old.get("counter")
         if (
-            type(counter) is not int
+            type(old.get("schema_version")) is not int
+            or type(counter) is not int
             or not 0 <= counter < _MAX_COUNTER
             or old != _epoch(slot.authority_id, counter)
         ):

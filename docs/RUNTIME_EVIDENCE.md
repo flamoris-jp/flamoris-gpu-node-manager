@@ -104,3 +104,15 @@ arbitrary-service, model-download or per-Workflow approval API is introduced.
 Offline tests cover shared-reader contention, all-slot locking, inode replacement,
 missing/corrupt epoch state, persistence failure and restart epoch allocation.
 They do not certify actual runtime writer coverage, content measurement or inference.
+
+## Portable continuation adapters
+
+[Evidence publication](EVIDENCE_PUBLICATION.md) now provides an anchored mutation
+lease, atomic schema-v1 issuance and automatic bounded expiry renewal for trusted
+measurement/lifetime ports. [ComfyUI measurement](COMFYUI_MEASUREMENT.md) connects
+runtime-owned observations to actual protected byte hashes.
+[RuntimeEvidenceLifecycle](EVIDENCE_LIFECYCLE.md) composes them into the existing
+Manager boundary without recursive startup locking. These are source-only,
+opt-in adapters; the default invalidator described above still never publishes.
+They do not settle the production initialization/writer/crash boundary. Issue #3
+and qualification remain open until those bindings and real acceptance exist.

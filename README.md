@@ -103,6 +103,12 @@ measure/publish evidence, cover external writers or make a Workflow ready.
 Existing profiles are unchanged when the field is omitted. See
 [runtime evidence boundary](docs/RUNTIME_EVIDENCE.md) before provisioning it.
 
+Portable trusted publication, expiry renewal and ComfyUI measurement adapters
+are available for reviewed deployment composition. They are opt-in Python ports;
+default entry points retain invalidation-only behavior. Actual initialization,
+protected content, lifetime and all-writer integration must still be established
+before enabling qualification. See [lifecycle composition](docs/EVIDENCE_LIFECYCLE.md).
+
 ## FLAMORIS
 
 FLAMORIS is open-source software for creative work and AI-native production.

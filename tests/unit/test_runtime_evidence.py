@@ -32,6 +32,20 @@ def epoch(record: Path):
     return json.loads(Path(str(record) + ".epoch.json").read_text())
 
 
+@pytest.mark.parametrize("schema", [True, 1.0])
+def test_noninteger_epoch_schema_blocks_supervisor_mutation(tmp_path, schema):
+    p = slot(tmp_path)
+    path = Path(str(p.evidence_record) + ".epoch.json")
+    malformed = epoch(p.evidence_record)
+    malformed["schema_version"] = schema
+    path.write_text(json.dumps(malformed))
+    manager, _, events, _ = make_manager((p,), active=p.id)
+    with pytest.raises(TransitionError, match="invalidation failed"):
+        manager.stop(p.id)
+    assert events == []
+    assert not p.evidence_record.exists()
+
+
 def make_manager(profiles, *, active: str | None = None, timeout=0.1):
     events = []
     systemd = FakeSystemd({f"{active}.service": ServiceState.ACTIVE} if active else {}, events)
