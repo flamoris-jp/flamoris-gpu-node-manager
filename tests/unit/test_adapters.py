@@ -298,4 +298,3 @@ def test_http_json_health_fails_closed_for_invalid_or_oversized_body(body: bytes
         server.shutdown()
         server.server_close()
         thread.join()
-
