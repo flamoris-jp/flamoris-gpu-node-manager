@@ -42,6 +42,10 @@ after atomic publication and before releasing a mutation lease. Drift, unknown
 lifetime and port errors withdraw evidence. An expiry refresher is not a crash
 monitor; the overlay must invalidate every external/automatic lifecycle path.
 
+The opt-in [Linux fence and pidfd exit invalidator](RUNTIME_INSTRUMENTATION.md)
+implement lifetime observations and post-exit withdrawal with explicit limits.
+They do not replace coordinated supervisor restart and writer bindings.
+
 ## Slot and mutation ownership
 
 Provision the slot offline using the existing

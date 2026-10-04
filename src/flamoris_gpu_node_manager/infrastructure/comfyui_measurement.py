@@ -313,6 +313,7 @@ def _snapshot(observation: InitializedObservation, budget: _Budget) -> _Snapshot
         if effective is None or effective != selected:
             raise ValueError("runtime checkpoint selection disagrees with effective lookup")
     document = {
+        "snapshot_token": observation.snapshot_token,
         "executable": executable,
         "search_paths": search_paths,
         "modules": modules,
