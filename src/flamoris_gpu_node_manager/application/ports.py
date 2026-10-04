@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from typing import Protocol
 
@@ -34,3 +35,9 @@ class HealthPort(Protocol):
 
 class TransitionLockPort(Protocol):
     def hold(self, timeout: float) -> AbstractContextManager[None]: ...
+
+
+class EvidenceInvalidationPort(Protocol):
+    def hold(
+        self, profiles: Sequence[RuntimeProfile], timeout: float
+    ) -> AbstractContextManager[None]: ...

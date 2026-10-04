@@ -96,6 +96,13 @@ paths, service selection or transition behavior.
 No arbitrary shell/service control, model downloads or generation-job management.
 See [architecture](docs/ARCHITECTURE.md) and [deployment contract](docs/DEPLOYMENT.md).
 
+Profiles may optionally set `evidence_record` to a protected, pre-provisioned JSON
+path. Managed transitions then lock and withdraw old Workflow qualification
+evidence before any service mutation. This is **invalidation only**: it does not
+measure/publish evidence, cover external writers or make a Workflow ready.
+Existing profiles are unchanged when the field is omitted. See
+[runtime evidence boundary](docs/RUNTIME_EVIDENCE.md) before provisioning it.
+
 ## FLAMORIS
 
 FLAMORIS is open-source software for creative work and AI-native production.

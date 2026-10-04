@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
+from contextlib import AbstractContextManager, nullcontext
 
 from flamoris_gpu_node_manager.domain.errors import TransitionError
 from flamoris_gpu_node_manager.domain.models import (
@@ -16,7 +17,13 @@ from flamoris_gpu_node_manager.domain.models import (
 )
 from flamoris_gpu_node_manager.domain.registry import RuntimeRegistry
 
-from .ports import HealthPort, ResourcePort, SystemdPort, TransitionLockPort
+from .ports import (
+    EvidenceInvalidationPort,
+    HealthPort,
+    ResourcePort,
+    SystemdPort,
+    TransitionLockPort,
+)
 
 _RUNNING_SERVICE_STATES = {
     ServiceState.ACTIVE,
@@ -37,6 +44,7 @@ class RuntimeManager:
         transition_lock: TransitionLockPort,
         *,
         lock_timeout: float = 5.0,
+        evidence_invalidator: EvidenceInvalidationPort | None = None,
     ) -> None:
         self._registry = registry
         self._systemd = systemd
@@ -44,6 +52,7 @@ class RuntimeManager:
         self._health = health
         self._transition_lock = transition_lock
         self._lock_timeout = lock_timeout
+        self._evidence_invalidator = evidence_invalidator
         self._status_lock = threading.RLock()
         self._statuses: dict[str, RuntimeStatus] = {}
         self._transition: TransitionStatus | None = None
@@ -194,15 +203,16 @@ class RuntimeManager:
             )
             self._set_transition(transition)
             try:
-                for conflict in conflicts:
-                    self._stop_profile(conflict, target.id)
-                target_service_state = self._systemd.get_state(target.service)
-                if (
-                    target_service_state not in _RUNNING_SERVICE_STATES
-                    and not self._resources.is_released(target)
-                ):
-                    self._stop_profile(target, target.id)
-                self._start_profile(target, from_runtime)
+                with self._invalidate_evidence((target, *conflicts), from_runtime, target.id):
+                    for conflict in conflicts:
+                        self._stop_profile(conflict, target.id)
+                    target_service_state = self._systemd.get_state(target.service)
+                    if (
+                        target_service_state not in _RUNNING_SERVICE_STATES
+                        and not self._resources.is_released(target)
+                    ):
+                        self._stop_profile(target, target.id)
+                    self._start_profile(target, from_runtime)
             except Exception as exc:
                 reason = str(exc) or type(exc).__name__
                 failed = TransitionStatus(
@@ -253,7 +263,8 @@ class RuntimeManager:
             transition = TransitionStatus(from_runtime=profile.id, target_runtime=None, step="stop")
             self._set_transition(transition)
             try:
-                self._stop_profile(profile, None)
+                with self._invalidate_evidence((profile,), profile.id, None):
+                    self._stop_profile(profile, None)
             except Exception as exc:
                 reason = str(exc) or type(exc).__name__
                 failed = TransitionStatus(
@@ -275,6 +286,25 @@ class RuntimeManager:
                 raise TransitionError(reason) from exc
             self._set_transition(None)
             return (self.runtime_status(profile.id),)
+
+    def _invalidate_evidence(
+        self,
+        profiles: Sequence[RuntimeProfile],
+        from_runtime: str | None,
+        target_runtime: str | None,
+    ) -> AbstractContextManager[None]:
+        if not any(profile.evidence_record is not None for profile in profiles):
+            return nullcontext()
+        self._set_transition(
+            TransitionStatus(
+                from_runtime=from_runtime,
+                target_runtime=target_runtime,
+                step="evidence-invalidation",
+            )
+        )
+        if self._evidence_invalidator is None:
+            raise TransitionError("configured runtime evidence invalidator is unavailable")
+        return self._evidence_invalidator.hold(profiles, self._lock_timeout)
 
     def _active_conflicts(self, target: RuntimeProfile) -> tuple[RuntimeProfile, ...]:
         return tuple(

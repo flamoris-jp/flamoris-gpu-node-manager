@@ -6,8 +6,10 @@ from pathlib import Path
 import pytest
 import yaml
 
+from flamoris_gpu_node_manager.bootstrap import build_manager
 from flamoris_gpu_node_manager.domain.errors import ProfileValidationError
 from flamoris_gpu_node_manager.infrastructure.config import load_registry
+from flamoris_gpu_node_manager.infrastructure.runtime_evidence import provision_evidence_slot
 
 
 def valid_profile(runtime_id: str = "alpha") -> dict[str, object]:
@@ -34,6 +36,45 @@ def valid_profile(runtime_id: str = "alpha") -> dict[str, object]:
 def write_profile(directory: Path, data: dict[str, object], name: str | None = None) -> None:
     path = directory / f"{name or data['id']}.yaml"
     path.write_text(yaml.safe_dump(data), encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        True,
+        1,
+        "runtime.json",
+        "/a/../b.json",
+        "/a//b.json",
+        "/a/./b.json",
+        "/a/b.lock",
+        "/a/b\n.json",
+    ],
+)
+def test_invalid_evidence_path_is_rejected(tmp_path, value):
+    data = valid_profile()
+    data["evidence_record"] = value
+    write_profile(tmp_path, data)
+    with pytest.raises(ProfileValidationError, match="evidence_record"):
+        load_registry(tmp_path)
+
+
+def test_bootstrap_requires_provisioned_evidence_slot_and_keeps_existing_api(tmp_path):
+    config = tmp_path / "profiles"
+    config.mkdir(mode=0o700)
+    evidence = tmp_path / "evidence"
+    evidence.mkdir(mode=0o700)
+    record = evidence / "runtime.json"
+    data = valid_profile()
+    data["evidence_record"] = str(record)
+    write_profile(config, data)
+    with pytest.raises(ProfileValidationError, match="safely provisioned"):
+        build_manager(config)
+    provision_evidence_slot(record)
+    manager = build_manager(config)
+    assert manager.list_runtimes()[0].evidence_record == record
+    with pytest.raises(ProfileValidationError, match="overlap"):
+        build_manager(config, lock_path=Path(str(record) + ".lock"))
 
 
 @pytest.mark.parametrize(

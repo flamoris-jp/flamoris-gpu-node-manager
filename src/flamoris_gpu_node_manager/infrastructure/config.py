@@ -192,6 +192,7 @@ def parse_profile(raw: object, *, source: str = "profile") -> RuntimeProfile:
             "health",
             "release",
             "timeouts",
+            "evidence_record",
         },
         required={
             "id",
@@ -235,6 +236,17 @@ def parse_profile(raw: object, *, source: str = "profile") -> RuntimeProfile:
             for field in timeout_fields
         }
     )
+    evidence_record = data.get("evidence_record")
+    if evidence_record is not None and (
+        not isinstance(evidence_record, str)
+        or len(evidence_record) > 4096
+        or not evidence_record.startswith("/")
+        or str(Path(evidence_record)) != evidence_record
+        or ".." in Path(evidence_record).parts
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.json", Path(evidence_record).name)
+        or any(ord(char) < 32 for char in evidence_record)
+    ):
+        raise ProfileValidationError(f"{source}.evidence_record must be an absolute JSON path")
     return RuntimeProfile(
         id=runtime_id,
         display_name=display_name,
@@ -244,6 +256,7 @@ def parse_profile(raw: object, *, source: str = "profile") -> RuntimeProfile:
         health=_parse_health(data["health"], f"{source}.health"),
         release=_parse_release(data["release"], f"{source}.release", resource_class),
         timeouts=timeouts,
+        evidence_record=Path(evidence_record) if evidence_record is not None else None,
     )
 
 
