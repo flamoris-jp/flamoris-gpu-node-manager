@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import socket
 import time
 import urllib.error
@@ -13,6 +14,8 @@ from flamoris_gpu_node_manager.application.ports import SystemdPort
 from flamoris_gpu_node_manager.domain.models import RuntimeProfile, ServiceState
 
 from .resource import ProcessResourceAdapter
+
+_MAX_HEALTH_BODY_BYTES = 64 * 1024
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -60,12 +63,32 @@ class HealthAdapter:
                     return True
             except OSError:
                 return False
-        if config.type == "http":
+        if config.type in {"http", "http-json"}:
             assert config.url is not None
             try:
                 with self._http.open(config.url, timeout=self._probe_timeout) as response:
-                    return 200 <= int(response.status) < 300
-            except (OSError, urllib.error.URLError):
+                    if not 200 <= int(response.status) < 300:
+                        return False
+                    if config.type == "http":
+                        return True
+                    length = response.headers.get("Content-Length")
+                    if length is not None and int(length) > _MAX_HEALTH_BODY_BYTES:
+                        return False
+                    body = response.read(_MAX_HEALTH_BODY_BYTES + 1)
+                    if len(body) > _MAX_HEALTH_BODY_BYTES:
+                        return False
+                    assert config.json_pointer is not None
+                    observed = _resolve_json_pointer(json.loads(body), config.json_pointer)
+                    return type(observed) is type(config.equals) and observed == config.equals
+            except (
+                OSError,
+                ValueError,
+                KeyError,
+                IndexError,
+                UnicodeError,
+                json.JSONDecodeError,
+                urllib.error.URLError,
+            ):
                 return False
         raise RuntimeError(f"validated health type has no adapter: {config.type}")
 
@@ -78,3 +101,19 @@ class HealthAdapter:
             if remaining <= 0:
                 return False
             self._sleep(min(self._poll_interval, remaining))
+
+
+def _resolve_json_pointer(document: object, pointer: str) -> object:
+    current = document
+    for raw_token in pointer.split("/")[1:]:
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(current, dict):
+            current = current[token]
+        elif isinstance(current, list):
+            if not token.isdigit():
+                raise KeyError(token)
+            current = current[int(token)]
+        else:
+            raise KeyError(token)
+    return current
+
