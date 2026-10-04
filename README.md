@@ -7,6 +7,20 @@ Each process has its own manager and transition progress. Status is reconstructe
 from host services/processes; a missing local transition does not mean another
 entry point is idle. The shared lock serializes mutations across processes.
 
+## Release status
+
+**Stable — v1.0** (Python package version `1.0.0`).
+
+The stable scope is configured Linux/systemd runtime lifecycle control, validated
+profiles, owned-process release, health checks, and the shared CLI/HTTP/MCP
+interfaces. Incompatible public interface or configuration changes require a new
+major release.
+
+A stable manager does not certify every runtime or GPU configuration. Deployment
+overlays must verify their own services, health contracts, process matchers and
+privilege/network boundaries. Optional lifecycle features and provider-specific
+integration remain separate work.
+
 ## Quick start
 
 Requires Python 3.11+ and Linux with systemd/procfs for actual runtime control.
