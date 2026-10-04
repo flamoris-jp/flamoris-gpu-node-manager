@@ -39,6 +39,8 @@ class HealthConfig:
     host: str | None = None
     port: int | None = None
     process_name: str | None = None
+    json_pointer: str | None = None
+    equals: bool | int | float | str | None = None
 
 
 @dataclass(frozen=True)

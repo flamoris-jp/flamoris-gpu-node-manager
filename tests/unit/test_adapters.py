@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -171,7 +172,10 @@ def test_lock_rejects_symlink_and_releases_thread_guard(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("status", [200, 204, 300, 301, 302, 303, 304, 307, 308, 500])
 @pytest.mark.parametrize("destination", ["/ready", "http://external.example/ready"])
-def test_http_health_requires_direct_success_without_redirects(status, destination, monkeypatch):
+@pytest.mark.parametrize("health_type", ["http", "http-json"])
+def test_http_health_requires_direct_success_without_redirects(
+    status, destination, health_type, monkeypatch
+):
     import threading
     from dataclasses import replace
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -186,6 +190,7 @@ def test_http_health_requires_direct_success_without_redirects(status, destinati
             self.send_response(status if self.path == "/health" else 200)
             self.send_header("Location", destination)
             self.end_headers()
+            self.wfile.write(b'{"ready":true}')
 
         def log_message(self, *args):
             pass
@@ -202,11 +207,246 @@ def test_http_health_requires_direct_success_without_redirects(status, destinati
         adapter = HealthAdapter(FakeSystemd({}, []), ProcessResourceAdapter(ProcessSource(())))
         runtime = replace(
             profile("alpha"),
-            health=HealthConfig(type="http", url=f"http://127.0.0.1:{server.server_port}/health"),
+            health=HealthConfig(
+                type=health_type,
+                url=f"http://127.0.0.1:{server.server_port}/health",
+                json_pointer="/ready" if health_type == "http-json" else None,
+                equals=True if health_type == "http-json" else None,
+            ),
         )
-        assert adapter.check(runtime) is (200 <= status < 300)
+        expected = 200 <= status < 300 and (health_type == "http" or status != 204)
+        assert adapter.check(runtime) is expected
         assert requests == ["/health"]
     finally:
         server.shutdown()
         server.server_close()
         thread.join()
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    [
+        ({"runtime": {"loaded": True}}, True),
+        ({"runtime": {"loaded": False}}, False),
+        ({"runtime": {}}, False),
+        ({"runtime": {"loaded": 1}}, False),
+    ],
+)
+def test_http_json_health_requires_matching_scalar(payload: object, expected: bool) -> None:
+    import threading
+    from dataclasses import replace
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from tests.helpers import FakeSystemd
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            body = json.dumps(payload).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        adapter = HealthAdapter(FakeSystemd({}, []), ProcessResourceAdapter(ProcessSource(())))
+        runtime = replace(
+            profile("alpha"),
+            health=HealthConfig(
+                type="http-json",
+                url=f"http://127.0.0.1:{server.server_port}/health",
+                json_pointer="/runtime/loaded",
+                equals=True,
+            ),
+        )
+        assert adapter.check(runtime) is expected
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+@pytest.mark.parametrize("body", [b"not json", b'{"runtime":' + b" " * 65536])
+def test_http_json_health_fails_closed_for_invalid_or_oversized_body(body: bytes) -> None:
+    import threading
+    from dataclasses import replace
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from tests.helpers import FakeSystemd
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        adapter = HealthAdapter(FakeSystemd({}, []), ProcessResourceAdapter(ProcessSource(())))
+        runtime = replace(
+            profile("alpha"),
+            health=HealthConfig(
+                type="http-json",
+                url=f"http://127.0.0.1:{server.server_port}/health",
+                json_pointer="/runtime/loaded",
+                equals=True,
+            ),
+        )
+        assert not adapter.check(runtime)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+@pytest.mark.parametrize(
+    ("body", "headers"),
+    [
+        (b'{"runtime":{"loaded":true}}', {"Content-Length": "100"}),
+        (b'{"runtime":{"loaded":true}}', {"Content-Length": "-1"}),
+        (b'{"runtime":{"loaded":false,"loaded":true}}', {}),
+        (b'{"runtime":{"loaded":true},"unused":NaN}', {}),
+        (b'{"runtime":{"loaded":true},"unused":1e999}', {}),
+        (b" " * 65537, {}),
+        (b'{"runtime":{"loaded":true}}', {"Content-Length": "invalid"}),
+    ],
+)
+def test_http_json_health_rejects_ambiguous_or_incomplete_responses(body, headers):
+    from dataclasses import replace
+    from io import BytesIO
+    from unittest.mock import Mock
+
+    class Response(BytesIO):
+        status = 200
+
+    response = Response(body)
+    response.headers = headers
+    adapter = HealthAdapter(Mock(), Mock())
+    adapter._http = Mock()
+    adapter._http.open.return_value = response
+    runtime = replace(
+        profile("alpha"),
+        health=HealthConfig(
+            type="http-json",
+            url="http://127.0.0.1:8088/health",
+            json_pointer="/runtime/loaded",
+            equals=True,
+        ),
+    )
+
+    assert adapter.check(runtime) is False
+
+
+@pytest.mark.parametrize("error", ["incomplete", "bad-status", "recursion"])
+def test_http_json_health_protocol_and_decoder_errors_fail_closed(error):
+    import http.client
+    from dataclasses import replace
+    from unittest.mock import Mock
+
+    errors = {
+        "incomplete": http.client.IncompleteRead(b"partial"),
+        "bad-status": http.client.BadStatusLine("broken"),
+        "recursion": RecursionError("deep response"),
+    }
+    adapter = HealthAdapter(Mock(), Mock())
+    adapter._http = Mock()
+    adapter._http.open.side_effect = errors[error]
+    runtime = replace(
+        profile("alpha"),
+        health=HealthConfig(
+            type="http-json",
+            url="http://127.0.0.1:8088/health",
+            json_pointer="/runtime/loaded",
+            equals=True,
+        ),
+    )
+
+    assert adapter.check(runtime) is False
+
+
+@pytest.mark.parametrize(
+    ("pointer", "expected"),
+    [("/a~1b/~0key/0", True), ("/a~1b/~0key/00", False), ("/a~1b/~0key/١", False)],
+)
+def test_http_json_health_resolves_escaped_keys_and_canonical_indices(pointer, expected):
+    from dataclasses import replace
+    from io import BytesIO
+    from unittest.mock import Mock
+
+    class Response(BytesIO):
+        status = 200
+        headers = {}
+
+    adapter = HealthAdapter(Mock(), Mock())
+    adapter._http = Mock()
+    adapter._http.open.return_value = Response(b'{"a/b":{"~key":[true]}}')
+    runtime = replace(
+        profile("alpha"),
+        health=HealthConfig(
+            type="http-json",
+            url="http://127.0.0.1:8088/health",
+            json_pointer=pointer,
+            equals=True,
+        ),
+    )
+
+    assert adapter.check(runtime) is expected
+
+
+def test_http_json_health_trickling_body_cannot_report_late_ready():
+    from dataclasses import replace
+    from io import BytesIO
+    from unittest.mock import Mock
+
+    clock = [0.0]
+
+    class Response(BytesIO):
+        status = 200
+        headers = {}
+
+        def read1(self, size=-1):
+            clock[0] += 0.2
+            return super().read1(min(size, 1))
+
+    adapter = HealthAdapter(Mock(), Mock(), probe_timeout=0.5, monotonic=lambda: clock[0])
+    adapter._http = Mock()
+    adapter._http.open.return_value = Response(b'{"runtime":{"loaded":true}}')
+    runtime = replace(
+        profile("alpha"),
+        health=HealthConfig(
+            type="http-json",
+            url="http://127.0.0.1:8088/health",
+            json_pointer="/runtime/loaded",
+            equals=True,
+        ),
+    )
+
+    assert adapter.check(runtime) is False
+    assert clock[0] < 1.0
+
+
+def test_health_wait_limits_probe_to_remaining_budget():
+    from unittest.mock import Mock
+
+    clock = [0.0]
+    adapter = HealthAdapter(Mock(), Mock(), probe_timeout=1.0, monotonic=lambda: clock[0])
+
+    def late_success(runtime, probe_timeout):
+        assert probe_timeout == 0.1
+        clock[0] += 0.2
+        return True
+
+    adapter._check = late_success
+
+    assert adapter.wait_healthy(profile("alpha"), 0.1) is False

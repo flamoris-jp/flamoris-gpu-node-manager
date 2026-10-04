@@ -22,8 +22,12 @@ Inspection failure is conservative. AMDGPU sysfs telemetry is best effort and
 never substitutes for ownership/readiness. Other GPU vendors can use lifecycle
 control with unavailable telemetry; no vendor-specific monitoring is claimed.
 
-Health types: http (loopback URL), tcp (loopback host/port), process,
-systemd-active, none. Only use a probe that truthfully represents readiness for
+Health types: http (loopback URL), http-json (loopback URL plus one JSON Pointer
+scalar equality), tcp (loopback host/port), process, systemd-active, none. HTTP JSON
+responses are bounded to 64 KiB; malformed, truncated, duplicate-key, non-finite,
+and missing values fail closed. Equality requires the same scalar type (a boolean
+is not the number 1). Array pointer indices use canonical ASCII decimal notation. Only
+use a probe that truthfully represents readiness for
 that runtime; an open TCP port does not prove that model weights have loaded.
 HTTP probes bypass environment proxies, reject all redirects and accept only
 direct 2xx responses from the configured endpoint.
@@ -36,3 +40,4 @@ runtime identifiers, transport paths, registry discovery or lock selection.
 
 Generation services retain generation-job authority. Model installs, idle policy,
 sleep/wake, multi-node scheduling and remote authentication are separate work.
+

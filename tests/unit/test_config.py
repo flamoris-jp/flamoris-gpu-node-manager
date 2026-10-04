@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -99,6 +100,57 @@ def test_http_and_tcp_health_must_be_loopback(tmp_path: Path) -> None:
         load_registry(tmp_path)
 
 
+def test_http_json_health_parses_readiness_contract(tmp_path: Path) -> None:
+    data = valid_profile()
+    data["health"] = {
+        "type": "http-json",
+        "url": "http://127.0.0.1:8088/health",
+        "json_pointer": "/runtime/loaded",
+        "equals": True,
+    }
+    write_profile(tmp_path, data)
+
+    health = load_registry(tmp_path).get("alpha").health
+
+    assert health.type == "http-json"
+    assert health.json_pointer == "/runtime/loaded"
+    assert health.equals is True
+
+
+@pytest.mark.parametrize(
+    "health",
+    [
+        {
+            "type": "http-json",
+            "url": "http://127.0.0.1:8088/health",
+            "json_pointer": "runtime/loaded",
+            "equals": True,
+        },
+        {
+            "type": "http-json",
+            "url": "http://127.0.0.1:8088/health",
+            "json_pointer": "/runtime/~2loaded",
+            "equals": True,
+        },
+        {
+            "type": "http-json",
+            "url": "http://127.0.0.1:8088/health",
+            "json_pointer": "/runtime/loaded",
+            "equals": {"nested": True},
+        },
+    ],
+)
+def test_http_json_health_rejects_invalid_contract(
+    tmp_path: Path, health: dict[str, object]
+) -> None:
+    data = valid_profile()
+    data["health"] = health
+    write_profile(tmp_path, data)
+
+    with pytest.raises(ProfileValidationError):
+        load_registry(tmp_path)
+
+
 def test_gpu_heavy_runtime_cannot_skip_release_check(tmp_path: Path) -> None:
     data = valid_profile()
     data["release"] = {"type": "none"}
@@ -106,3 +158,35 @@ def test_gpu_heavy_runtime_cannot_skip_release_check(tmp_path: Path) -> None:
 
     with pytest.raises(ProfileValidationError, match="gpu-heavy"):
         load_registry(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "expected",
+    [date(2026, 1, 1), b"ready", {"ready"}, float("inf"), float("nan"), [True]],
+)
+def test_http_json_health_rejects_non_json_scalars(tmp_path: Path, expected: object) -> None:
+    data = valid_profile()
+    data["health"] = {
+        "type": "http-json",
+        "url": "http://127.0.0.1:8088/health",
+        "json_pointer": "/runtime/loaded",
+        "equals": expected,
+    }
+    write_profile(tmp_path, data)
+
+    with pytest.raises(ProfileValidationError, match="finite JSON scalar"):
+        load_registry(tmp_path)
+
+
+@pytest.mark.parametrize("expected", [None, True, 1, 1.5, "ready"])
+def test_http_json_health_accepts_json_scalars(tmp_path: Path, expected: object) -> None:
+    data = valid_profile()
+    data["health"] = {
+        "type": "http-json",
+        "url": "http://127.0.0.1:8088/health",
+        "json_pointer": "/runtime/loaded",
+        "equals": expected,
+    }
+    write_profile(tmp_path, data)
+
+    assert load_registry(tmp_path).get("alpha").health.equals == expected

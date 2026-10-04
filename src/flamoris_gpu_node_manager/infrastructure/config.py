@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Mapping
 from pathlib import Path
@@ -81,6 +82,10 @@ def _parse_health(raw: object, location: str) -> HealthConfig:
     health_type = data.get("type")
     variants: dict[str, tuple[set[str], set[str]]] = {
         "http": ({"type", "url"}, {"type", "url"}),
+        "http-json": (
+            {"type", "url", "json_pointer", "equals"},
+            {"type", "url", "json_pointer", "equals"},
+        ),
         "tcp": ({"type", "host", "port"}, {"type", "host", "port"}),
         "process": ({"type", "process_name"}, {"type", "process_name"}),
         "systemd-active": ({"type"}, {"type"}),
@@ -91,13 +96,32 @@ def _parse_health(raw: object, location: str) -> HealthConfig:
     allowed, required = variants[health_type]
     _strict_keys(data, allowed=allowed, required=required, location=location)
 
-    if health_type == "http":
+    if health_type in {"http", "http-json"}:
         url = data["url"]
         if not isinstance(url, str):
             raise ProfileValidationError(f"{location}.url must be a string")
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or parsed.hostname not in _LOOPBACK_HOSTS:
             raise ProfileValidationError(f"{location}.url must be an HTTP loopback URL")
+        if health_type == "http-json":
+            pointer = data["json_pointer"]
+            expected = data["equals"]
+            if not isinstance(pointer, str) or not pointer.startswith("/"):
+                raise ProfileValidationError(
+                    f"{location}.json_pointer must be a non-empty JSON Pointer"
+                )
+            if re.search(r"~(?:[^01]|$)", pointer):
+                raise ProfileValidationError(f"{location}.json_pointer contains an invalid escape")
+            if type(expected) not in {type(None), bool, int, float, str} or (
+                isinstance(expected, float) and not math.isfinite(expected)
+            ):
+                raise ProfileValidationError(f"{location}.equals must be a finite JSON scalar")
+            return HealthConfig(
+                type=health_type,
+                url=url,
+                json_pointer=pointer,
+                equals=expected,
+            )
         return HealthConfig(type=health_type, url=url)
 
     if health_type == "tcp":
