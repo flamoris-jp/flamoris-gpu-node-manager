@@ -157,4 +157,3 @@ def test_gpu_heavy_runtime_cannot_skip_release_check(tmp_path: Path) -> None:
 
     with pytest.raises(ProfileValidationError, match="gpu-heavy"):
         load_registry(tmp_path)
-
