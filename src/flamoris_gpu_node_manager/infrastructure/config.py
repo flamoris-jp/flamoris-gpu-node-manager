@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Mapping
 from pathlib import Path
@@ -111,8 +112,10 @@ def _parse_health(raw: object, location: str) -> HealthConfig:
                 )
             if re.search(r"~(?:[^01]|$)", pointer):
                 raise ProfileValidationError(f"{location}.json_pointer contains an invalid escape")
-            if isinstance(expected, (list, Mapping)):
-                raise ProfileValidationError(f"{location}.equals must be a JSON scalar")
+            if type(expected) not in {type(None), bool, int, float, str} or (
+                isinstance(expected, float) and not math.isfinite(expected)
+            ):
+                raise ProfileValidationError(f"{location}.equals must be a finite JSON scalar")
             return HealthConfig(
                 type=health_type,
                 url=url,

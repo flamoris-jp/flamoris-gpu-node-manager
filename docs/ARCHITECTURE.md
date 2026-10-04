@@ -24,7 +24,9 @@ control with unavailable telemetry; no vendor-specific monitoring is claimed.
 
 Health types: http (loopback URL), http-json (loopback URL plus one JSON Pointer
 scalar equality), tcp (loopback host/port), process, systemd-active, none. HTTP JSON
-responses are bounded to 64 KiB and malformed or missing values fail closed. Only
+responses are bounded to 64 KiB; malformed, truncated, duplicate-key, non-finite,
+and missing values fail closed. Equality requires the same scalar type (a boolean
+is not the number 1). Array pointer indices use canonical ASCII decimal notation. Only
 use a probe that truthfully represents readiness for
 that runtime; an open TCP port does not prove that model weights have loaded.
 HTTP probes bypass environment proxies, reject all redirects and accept only
