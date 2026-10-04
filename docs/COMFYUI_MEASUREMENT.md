@@ -8,8 +8,10 @@ any profile, command, service, production pin or provider process.
 
 ## Trust and completeness
 
-An overlay must implement `InitializedRuntimePort.observe(deadline=...)` as
-reviewed **local, runtime-owned instrumentation**. It invokes
+An overlay must bind `InitializedRuntimePort.observe(deadline=...)` to reviewed
+**local, runtime-owned instrumentation**. Portable
+[runtime implementations](RUNTIME_INSTRUMENTATION.md) supply an explicit local
+port, structural legacy reader and PID/UID-bound UNIX client. The local port invokes
 `capture_comfyui_bindings()` inside the selected ComfyUI process after actual
 asynchronous node initialization. A manager-side Python process, a remote
 `object_info` response, client-authored inventory or a nonempty node registry
@@ -71,8 +73,9 @@ filename in LoadImage choices as an interface change. Conversely, stripping ever
 enum/default would miss real behavior changes. Neither is a supported v1 port.
 The offline fixtures use a synthetic already-normalized schema; they do not
 certify normalization for installed third-party nodes.
-The production runtime port and its schema normalizer are **unimplemented
-prerequisites**, not features supplied by this source adapter.
+The portable legacy port/normalizer is implemented separately from this source.
+Its installed API compatibility and actual initialization binding remain
+unaccepted prerequisites. V3 and unknown dynamic semantics fail closed.
 
 ## Origin and content binding
 
@@ -99,7 +102,7 @@ The node implementation digest binds the three measured group identities, the
 fingerprint of the complete observed runtime binding document, and the exact node
 name/module/qualified-name/file binding under `comfyui-measured-node-v1`. The
 binding document includes ordered search paths, module and node mappings,
-model-folder mappings, native libraries, and the closure's labeled absolute
+model-folder mappings, retained-object revision, native libraries, and labeled absolute
 roots. Its canonical JSON is hashed once, then reused as an identity while
 computing each node digest. No source/model/config bytes or actual paths appear
 in the returned manifest.
@@ -150,8 +153,9 @@ The source limits observation work to 100,000 entries, eight MiB of UTF-8 text,
 4,096 characters per text value and 64 nested JSON levels. Byte measurement uses
 `MeasurementLimits` with its timeout capped by the remaining source deadline.
 Checks occur throughout observation processing and each node digest. There is no
-digest cache. A runtime/OS call can still block; a subprocess watchdog in the
-reviewed overlay is required for a hard wall-clock bound.
+digest cache. The opt-in spawned authority watchdog bounds worker operations;
+its limits and required overlay binding are documented in
+[runtime instrumentation](RUNTIME_INSTRUMENTATION.md).
 
 Every failure raises `ComfyUIMeasurementError` with the fixed public message
 `initialized runtime measurement unavailable`. Paths, configuration bytes and

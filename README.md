@@ -108,6 +108,10 @@ are available for reviewed deployment composition. They are opt-in Python ports;
 default entry points retain invalidation-only behavior. Actual initialization,
 protected content, lifetime and all-writer integration must still be established
 before enabling qualification. See [lifecycle composition](docs/EVIDENCE_LIFECYCLE.md).
+Explicit runtime-owned capture, legacy schema normalization, UNIX observation,
+spawned measurement and Linux lifetime/exit adapters are described in
+[runtime instrumentation](docs/RUNTIME_INSTRUMENTATION.md), including unsupported
+node API forms and the required host binding/acceptance boundary.
 
 ## FLAMORIS
 
