@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 
 
@@ -67,6 +68,7 @@ class RuntimeProfile:
     health: HealthConfig
     release: ReleaseConfig
     timeouts: TimeoutConfig
+    evidence_record: Path | None = None
 
 
 @dataclass(frozen=True)

@@ -50,3 +50,9 @@ cannot certify driver resource release or a host's actual service definitions.
 
 Publication checks cover source, tests, docs, examples and package contents. Keep
 real node inventories and deployment information in their private overlay.
+
+Optional `evidence_record` profiles require an offline-provisioned persistent slot
+and identical bindings in every entry point. Do not deploy this invalidation
+primitive as a complete runtime evidence publisher or move a production overlay
+pin merely to enable qualification. See [the explicit remaining continuity
+requirements](RUNTIME_EVIDENCE.md). Existing profiles need no change.
