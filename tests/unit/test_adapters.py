@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -210,3 +211,91 @@ def test_http_health_requires_direct_success_without_redirects(status, destinati
         server.shutdown()
         server.server_close()
         thread.join()
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    [
+        ({"runtime": {"loaded": True}}, True),
+        ({"runtime": {"loaded": False}}, False),
+        ({"runtime": {}}, False),
+        ({"runtime": {"loaded": 1}}, False),
+    ],
+)
+def test_http_json_health_requires_matching_scalar(payload: object, expected: bool) -> None:
+    import threading
+    from dataclasses import replace
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from tests.helpers import FakeSystemd
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            body = json.dumps(payload).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        adapter = HealthAdapter(FakeSystemd({}, []), ProcessResourceAdapter(ProcessSource(())))
+        runtime = replace(
+            profile("alpha"),
+            health=HealthConfig(
+                type="http-json",
+                url=f"http://127.0.0.1:{server.server_port}/health",
+                json_pointer="/runtime/loaded",
+                equals=True,
+            ),
+        )
+        assert adapter.check(runtime) is expected
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+@pytest.mark.parametrize("body", [b"not json", b'{"runtime":' + b" " * 65536])
+def test_http_json_health_fails_closed_for_invalid_or_oversized_body(body: bytes) -> None:
+    import threading
+    from dataclasses import replace
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from tests.helpers import FakeSystemd
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        adapter = HealthAdapter(FakeSystemd({}, []), ProcessResourceAdapter(ProcessSource(())))
+        runtime = replace(
+            profile("alpha"),
+            health=HealthConfig(
+                type="http-json",
+                url=f"http://127.0.0.1:{server.server_port}/health",
+                json_pointer="/runtime/loaded",
+                equals=True,
+            ),
+        )
+        assert not adapter.check(runtime)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
