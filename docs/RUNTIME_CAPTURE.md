@@ -33,6 +33,9 @@ invoking custom module/metaclass attribute hooks. Nonstandard module specs are
 unknown; custom/lazy namespace path iterators are not executed and remain
 unresolved. Explicit list/tuple namespace paths are observed as given. Ordinary
 container subclasses are rejected rather than calling custom iterators.
+Non-module compatibility entries (including Python's `typing.io`/`typing.re`
+class aliases) are preserved as unknown without accessing their attributes.
+They cannot be used as registered-node file origins or complete closure evidence.
 
 Paths are converted to absolute lexical paths relative to the observed working
 directory. Symlinks are not resolved or silently accepted as protected content.

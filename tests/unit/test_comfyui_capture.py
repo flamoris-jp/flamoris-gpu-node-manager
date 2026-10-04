@@ -286,7 +286,7 @@ def test_missing_or_unsupported_bindings_refused(runtime, change):
     elif change == "bad_folder":
         folders.folder_names_and_paths["checkpoints"] = [[], []]
     else:
-        modules["bad"] = object()
+        modules["nodes"] = object()
     with pytest.raises(cc.RuntimeCaptureError, match="^runtime binding capture unavailable$"):
         capture(runtime)
 
@@ -337,3 +337,35 @@ def test_symlink_paths_remain_lexical_for_authority_validation(runtime):
     link.symlink_to(target)
     folders.folder_names_and_paths["checkpoints"] = ([str(link)], {".bin"})
     assert capture(runtime).model_folders["checkpoints"].paths == (link,)
+
+
+def test_nonmodule_compatibility_aliases_are_unknown_without_attribute_access(runtime):
+    modules, _, _, _ = runtime
+
+    class Alias:
+        @property
+        def __class__(self):
+            raise AssertionError("alias class getter")
+
+        def __getattribute__(self, name):
+            raise AssertionError("alias getter")
+
+    modules["typing.io"] = Alias
+    modules["typing.re"] = Alias()
+    observed = capture(runtime)
+    for name in ("typing.io", "typing.re"):
+        assert observed.modules[name].kind == "unknown"
+        assert name in observed.unresolved_modules
+
+
+def test_nonclass_registry_entry_cannot_invoke_class_getter(runtime):
+    _, nodes, _, _ = runtime
+
+    class NotClass:
+        @property
+        def __class__(self):
+            raise AssertionError("node class getter")
+
+    nodes.NODE_CLASS_MAPPINGS["Image"] = NotClass()
+    with pytest.raises(cc.RuntimeCaptureError):
+        capture(runtime)

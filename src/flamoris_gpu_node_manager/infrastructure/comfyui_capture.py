@@ -105,7 +105,7 @@ def _sequence(value: object, budget: _Budget) -> tuple[object, ...]:
 
 
 def _namespace(module: object) -> dict[str, object]:
-    if not isinstance(module, ModuleType):
+    if not issubclass(type(module), ModuleType):
         raise RuntimeCaptureError()
     # Bypass module __getattr__/subclass __getattribute__. No plugin getters,
     # node INPUT_TYPES/GET_SCHEMA, import loaders or namespace iterators run.
@@ -116,6 +116,10 @@ def _namespace(module: object) -> dict[str, object]:
 def _module_binding(module: object, cwd: Path, budget: _Budget) -> ModuleBinding:
     if module is None:
         return ModuleBinding("blocked", None, ())
+    if not issubclass(type(module), ModuleType):
+        # Python registers compatibility aliases as classes (typing.io/re).
+        # Preserve them as unknown without touching attributes or getters.
+        return ModuleBinding("unknown", None, None)
     namespace = _namespace(module)
     raw_file = namespace.get("__file__")
     file = budget.path(raw_file, cwd) if raw_file is not None else None
@@ -167,7 +171,7 @@ def _collect(budget: _Budget) -> tuple[ComfyUIBindings, dict[str, object]]:
     nodes: dict[str, NodeBinding] = {}
     for raw_name, cls in raw_nodes.items():
         name = budget.text(raw_name)
-        if not isinstance(cls, type):
+        if not issubclass(type(cls), type):
             raise RuntimeCaptureError()
         class_dict = type.__dict__["__dict__"].__get__(cls, type)
         module_name = budget.text(class_dict.get("__module__"))
@@ -227,6 +231,6 @@ def capture_comfyui_bindings() -> ComfyUIBindings:
         budget.check()
         return first
     except Exception as error:
-        if isinstance(error, RuntimeCaptureError):
+        if issubclass(type(error), RuntimeCaptureError):
             raise
         raise RuntimeCaptureError() from error
