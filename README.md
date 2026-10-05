@@ -96,10 +96,14 @@ paths, service selection or transition behavior.
 No arbitrary shell/service control, model downloads or generation-job management.
 See [architecture](docs/ARCHITECTURE.md) and [deployment contract](docs/DEPLOYMENT.md).
 
+Generation’s custom qualification/evidence consumer is retired. Optional host
+ports remain for their own lifecycle/measurement contracts; they do not enable
+custom image execution or transfer generation-job authority here.
+
 Profiles may optionally set `evidence_record` to a protected, pre-provisioned JSON
-path. Managed transitions then lock and withdraw old Workflow qualification
+path. Managed transitions then lock and withdraw old qualification
 evidence before any service mutation. This is **invalidation only**: it does not
-measure/publish evidence, cover external writers or make a Workflow ready.
+measure/publish evidence, cover external writers or qualify a generation request.
 Existing profiles are unchanged when the field is omitted. See
 [runtime evidence boundary](docs/RUNTIME_EVIDENCE.md) before provisioning it.
 
@@ -107,7 +111,7 @@ Portable trusted publication, expiry renewal and ComfyUI measurement adapters
 are available for reviewed deployment composition. They are opt-in Python ports;
 default entry points retain invalidation-only behavior. Actual initialization,
 protected content, lifetime and all-writer integration must still be established
-before enabling qualification. See [lifecycle composition](docs/EVIDENCE_LIFECYCLE.md).
+before any separately reviewed consumer can rely on those facts. See [lifecycle composition](docs/EVIDENCE_LIFECYCLE.md).
 Explicit runtime-owned capture, legacy schema normalization, UNIX observation,
 spawned measurement and Linux lifetime/exit adapters are described in
 [runtime instrumentation](docs/RUNTIME_INSTRUMENTATION.md), including unsupported

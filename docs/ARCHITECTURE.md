@@ -41,14 +41,15 @@ runtime identifiers, transport paths, registry discovery or lock selection.
 Generation services retain generation-job authority. Model installs, idle policy,
 sleep/wake, multi-node scheduling and remote authentication are separate work.
 
-An optional evidence invalidation port runs inside the existing host-wide lock.
+The former custom Generation evidence consumer is retired; retained ports do not
+recreate it. An optional evidence invalidation port runs inside the existing host-wide lock.
 For a managed switch it exclusively locks all configured affected evidence slots
 before stopping any source or starting the target. For stop it locks the requested
 slot. Locks remain held through release/start/health. A READY activation no-op
 does not withdraw evidence. Storage/lock/epoch failure blocks supervisor calls
 and reports the `evidence-invalidation` transition step when failure occurs there.
 No adapter adds another transition or qualification state authority. Health READY
-continues to mean lifecycle readiness, not Workflow qualification. The port never
+continues to mean lifecycle readiness, not generation qualification. The port never
 publishes a manifest; external lifecycle/content mutation and trusted measurement
 remain prerequisites described in [RUNTIME_EVIDENCE.md](RUNTIME_EVIDENCE.md).
 
