@@ -1,5 +1,13 @@
 # Runtime instrumentation and bounded measurement
 
+**Current consumer status (2026-10-05):** Generation #69 removed its custom
+ComfyWorkFlow qualification/runtime-evidence consumer. The optional host-owned
+measurement, publication and invalidation ports remain independent contracts;
+default RuntimeManager behavior is unchanged. References below to the Generation
+schema/reader describe the former consumer and exact compatibility history, not
+an active registration or qualification path. Do not recreate that retired feature
+or discard provisioned slots, evidence or unresolved host work.
+
 These opt-in Python implementations fill portable observation, schema, transport,
 lifetime and watchdog ports. They are not installed hooks or production acceptance.
 Default CLI/HTTP/MCP remains invalidation-only. No profile, service, version or
