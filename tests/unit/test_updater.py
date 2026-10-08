@@ -14,6 +14,47 @@ def tree(tmp_path, name):
     return TreeResource(TreeBinding(id=name, path=str(path), max_files=20, max_bytes=4096))
 
 
+def test_owner_manager_uses_the_deployment_shared_lock(tmp_path, monkeypatch):
+    configuration = tmp_path / "configuration"
+    configuration.mkdir()
+    lock_path = tmp_path / "transition.lock"
+    lock_path.touch()
+    config = SimpleNamespace(
+        trees=[SimpleNamespace(id="configuration", path=str(configuration))],
+        domain_configuration={"lock_path": str(lock_path)},
+    )
+    calls = []
+    authority = object()
+    monkeypatch.setattr(
+        updater,
+        "build_manager",
+        lambda root, *, lock_path: calls.append((root, lock_path)) or authority,
+    )
+    assert updater.manager(config) is authority
+    assert calls == [(configuration, lock_path)]
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {},
+        {"lock_path": "relative/transition.lock"},
+        {"lock_path": 42},
+        {"lock_path": "/run/manager/transition.lock", "other": True},
+    ],
+)
+def test_owner_manager_rejects_ambiguous_lock_configuration(tmp_path, settings):
+    configuration = tmp_path / "configuration"
+    configuration.mkdir()
+    config = SimpleNamespace(
+        trees=[SimpleNamespace(id="configuration", path=str(configuration))],
+        domain_configuration=settings,
+    )
+    with pytest.raises(UpdateError) as caught:
+        updater.manager(config)
+    assert caught.value.code == "invalid_profile"
+
+
 @pytest.mark.parametrize(
     "runtime_state,anomalies,active,unknown",
     [

@@ -29,7 +29,10 @@ acceptance. Preserve all current data, grants, configuration identities and
 independently readable history.
 
 This remains native. Preserve the installed deployment overlay, environment and
-matched dependencies. Updater uses RuntimeManager and its existing host-wide lock.
-Evidence identities/locks are preserved; failed inspection never proves OFF.
+matched dependencies. The private Owner configuration must contain exactly one
+domain setting, an absolute normalized `lock_path` matching every deployed manager
+entry point. Updater passes that deployment-owned path to the same RuntimeManager;
+it does not fall back to a package default. Evidence identities/locks are preserved;
+failed inspection never proves OFF.
 The v1.1 baseline tag identifies source whose package reports 1.0.0. The entry
 release is 1.2.0; do not infer actual installed identity from that tag.
