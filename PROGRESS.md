@@ -11,7 +11,8 @@ review. Release publication and real-host adoption remain pending.
 
 Local full suite: **499 passed, 7 procfs/environment tests skipped locally**. All seven application wheel-from-sdist builds and
 declared Owner entrypoint/module checks passed. The operator made Updater public,
-resolving the initial SDK download 404. SDK source remains pinned to
+resolving the initial SDK download 404. That adoption checkpoint used SDK source
+pinned to
 `d9f010a92ff6e8a1e7a3b7fad8817850bdfb72cd` (Updater PR #6).
 
 [CI run 37766184979](https://github.com/flamoris-jp/flamoris-gpu-node-manager/actions/runs/37766184979):
@@ -28,3 +29,9 @@ initialization, private profile/trust provisioning, release publication, live
 provider call, real-host update, enrollment or automatic merge occurred. Native
 deployment overlays and matched dependencies remain deployment-owned.
 See [Updater contract](docs/UPDATER.md).
+
+## Pre-deployment dependency refresh
+
+The SDK pin now targets merged Updater correction
+`d5ec3408d2a9b43ce44efef6ab8209a6b8ffad25`. Review and CI at this exact
+revision are pending. No runtime, trust, release, data or host state was changed.
