@@ -41,5 +41,7 @@ revision are pending. No runtime, trust, release, data or host state was changed
 Restricted live preflight found that a deployed overlay can retain a non-default
 host-wide transition lock. The Owner now requires that exact deployment-owned
 absolute lock path and passes it to the sole RuntimeManager. Missing, relative or
-ambiguous settings fail closed. Source review, CI, release rebuild and live
-acceptance are pending; no runtime or host state was changed by this correction.
+ambiguous settings fail closed. Source review and
+[CI run 37857487439](https://github.com/flamoris-jp/flamoris-gpu-node-manager/actions/runs/37857487439)
+passed with the full repository checks. Release rebuild and live acceptance remain
+pending; no runtime or host state was changed by this correction.
