@@ -33,5 +33,5 @@ See [Updater contract](docs/UPDATER.md).
 ## Pre-deployment dependency refresh
 
 The SDK pin now targets merged Updater correction
-`d5ec3408d2a9b43ce44efef6ab8209a6b8ffad25`. Review and CI at this exact
+`797d6f4e7bd4089e7c162fa50c10a0afae68370a`. Review and CI at this exact
 revision are pending. No runtime, trust, release, data or host state was changed.
