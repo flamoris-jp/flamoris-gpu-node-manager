@@ -35,3 +35,11 @@ See [Updater contract](docs/UPDATER.md).
 The SDK pin now targets merged Updater correction
 `797d6f4e7bd4089e7c162fa50c10a0afae68370a`. Review and CI at this exact
 revision are pending. No runtime, trust, release, data or host state was changed.
+
+## Shared-lock pre-deployment correction
+
+Restricted live preflight found that a deployed overlay can retain a non-default
+host-wide transition lock. The Owner now requires that exact deployment-owned
+absolute lock path and passes it to the sole RuntimeManager. Missing, relative or
+ambiguous settings fail closed. Source review, CI, release rebuild and live
+acceptance are pending; no runtime or host state was changed by this correction.
