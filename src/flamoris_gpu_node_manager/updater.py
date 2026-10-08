@@ -22,9 +22,15 @@ SCHEMAS = {"configuration": "gpu-profiles-1", "evidence": "runtime-evidence-1"}
 
 def manager(config: OwnerConfiguration) -> RuntimeManager:
     root = next(Path(binding.path) for binding in config.trees if binding.id == "configuration")
+    settings = config.domain_configuration
+    if set(settings) != {"lock_path"} or not isinstance(settings["lock_path"], str):
+        raise UpdateError("invalid_profile")
+    lock_path = Path(settings["lock_path"])
+    if not lock_path.is_absolute() or lock_path.resolve() != lock_path:
+        raise UpdateError("invalid_profile")
     token = CURRENT.set("owner-maintenance")
     try:
-        return build_manager(root)
+        return build_manager(root, lock_path=lock_path)
     finally:
         CURRENT.reset(token)
 
