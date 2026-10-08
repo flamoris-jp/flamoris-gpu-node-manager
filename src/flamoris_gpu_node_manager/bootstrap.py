@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from flamoris_update_core.admission import register_boot
+
 from flamoris_gpu_node_manager.application.manager import RuntimeManager
 from flamoris_gpu_node_manager.application.ports import EvidenceInvalidationPort
 from flamoris_gpu_node_manager.domain.errors import ProfileValidationError
@@ -25,6 +27,7 @@ def build_manager(
     lock_timeout: float = 5.0,
     evidence_lifecycle: EvidenceInvalidationPort | None = None,
 ) -> RuntimeManager:
+    register_boot("flamoris-gpu-node-manager")
     registry = load_registry(config_directory)
     if any(
         profile.evidence_record is not None

@@ -6,7 +6,9 @@ import threading
 from collections.abc import Iterable, Sequence
 from contextlib import AbstractContextManager, nullcontext
 
-from flamoris_gpu_node_manager.domain.errors import TransitionError
+from flamoris_update_core.admission import guarded
+
+from flamoris_gpu_node_manager.domain.errors import TransitionBusyError, TransitionError
 from flamoris_gpu_node_manager.domain.models import (
     RuntimeProfile,
     RuntimeState,
@@ -164,6 +166,7 @@ class RuntimeManager:
                 anomalies=self._anomalies,
             )
 
+    @guarded(TransitionBusyError)
     def activate(self, runtime_id: str) -> RuntimeStatus:
         target = self._registry.get(runtime_id, require_enabled=True)
         with self._transition_lock.hold(self._lock_timeout):
@@ -245,6 +248,7 @@ class RuntimeManager:
             self._set_transition(None)
             return self.runtime_status(target.id)
 
+    @guarded(TransitionBusyError)
     def stop(self, runtime_id: str | None = None) -> tuple[RuntimeStatus, ...]:
         requested: tuple[RuntimeProfile, ...] = (
             (self._registry.get(runtime_id),) if runtime_id is not None else ()

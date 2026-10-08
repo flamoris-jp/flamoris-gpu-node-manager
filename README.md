@@ -156,3 +156,8 @@ FLAMORISのソフトウェアは現状のまま提供されます。個別サポ
 Code in this repository is licensed under the [Apache License 2.0](LICENSE), unless otherwise noted.
 
 AI models, model weights, datasets, media, and other non-code assets may use separate licenses. State their applicable licenses alongside those assets.
+
+## Updater entry release 1.2.0
+
+See [Updater compatibility](docs/UPDATER.md) for the implemented admission/Owner
+contract and pending signed release/private provisioning/real-host acceptance.

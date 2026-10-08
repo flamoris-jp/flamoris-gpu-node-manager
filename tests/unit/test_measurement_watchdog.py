@@ -103,9 +103,18 @@ def test_invalid_watchdog_deadlines_start_no_worker(offset):
         watchdog.SpawnedManifestSource(ReadySource()).measure(deadline=time.monotonic() + offset)
 
 
-def test_actual_lifetime_fence_exit_and_credential_mismatch():
-    if not Path(f"/proc/{os.getpid()}/stat").exists():
+def _require_matching_procfs():
+    try:
+        actual = int(Path("/proc/self/stat").read_text().split(" ", 1)[0])
+        Path(f"/proc/{os.getpid()}/exe").stat()
+    except (OSError, ValueError):
+        actual = None
+    if actual != os.getpid():
         pytest.skip("execution sandbox uses incompatible procfs namespace; exercised on Linux CI")
+
+
+def test_actual_lifetime_fence_exit_and_credential_mismatch():
+    _require_matching_procfs()
     with subprocess.Popen(
         [sys.executable, "-c", "import sys; sys.stdin.read()"], stdin=subprocess.PIPE
     ) as child:
@@ -123,8 +132,7 @@ def test_actual_lifetime_fence_exit_and_credential_mismatch():
 
 
 def test_lifetime_identity_drift_never_accepts_same_pid():
-    if not Path(f"/proc/{os.getpid()}/stat").exists():
-        pytest.skip("execution sandbox uses incompatible procfs namespace; exercised on Linux CI")
+    _require_matching_procfs()
     with LinuxProcessLifetimeFence(os.getpid(), os.geteuid()) as fence:
         changed = (*fence._identity[:-1], fence._identity[-1] + 1)
         with (
