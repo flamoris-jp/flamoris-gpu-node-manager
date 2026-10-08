@@ -50,8 +50,9 @@ def test_owner_manager_rejects_ambiguous_lock_configuration(tmp_path, settings):
         trees=[SimpleNamespace(id="configuration", path=str(configuration))],
         domain_configuration=settings,
     )
-    with pytest.raises(UpdateError, match="invalid_profile"):
+    with pytest.raises(UpdateError) as caught:
         updater.manager(config)
+    assert caught.value.code == "invalid_profile"
 
 
 @pytest.mark.parametrize(
