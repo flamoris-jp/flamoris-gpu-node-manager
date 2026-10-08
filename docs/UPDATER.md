@@ -1,6 +1,7 @@
 # Updater compatibility (1.2.0)
 
-Source adoption is under review. Version metadata does not certify a published
+Source review/fixes and CI passed; the PR awaits human review/merge. Version
+metadata does not certify a published
 release or a real-host update. No production data, credentials or service is
 changed by this PR.
 
