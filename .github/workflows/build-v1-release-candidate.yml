@@ -1,0 +1,140 @@
+name: Build reviewed GPU Manager v1.2 candidate
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2ca548dc8040bbda87074dba0460b50e1adb443e
+      - name: Verify exact reviewed source
+        run: test "$(git rev-parse HEAD)" = "2ca548dc8040bbda87074dba0460b50e1adb443e"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build fixed wheelhouse
+        run: |
+          python -m pip install build
+          mkdir -p dist/wheels
+          python -m pip wheel . --wheel-dir dist/wheels
+      - name: Build indexed native candidate
+        shell: bash
+        run: |
+          python - <<'PY'
+          import gzip, hashlib, importlib.metadata, json, os, subprocess, tarfile
+          from pathlib import Path
+
+          root = Path("candidate/root")
+          vendor = root / "site-packages"
+          vendor.mkdir(parents=True)
+          wheels = sorted(str(path) for path in Path("dist/wheels").glob("*.whl"))
+          if not wheels:
+              raise SystemExit("wheelhouse is empty")
+          subprocess.run([
+              "python", "-m", "pip", "install", "--only-binary=:all:", "--no-index",
+              "--no-deps", "--no-compile", "--target", str(vendor), *wheels
+          ], check=True)
+          for child in (vendor / "bin", root / "bin"):
+              if child.exists():
+                  import shutil
+                  shutil.rmtree(child)
+          (root / "bin").mkdir()
+          launchers = {
+              "gpu-node-manager": "flamoris_gpu_node_manager.cli",
+              "flamoris-gpu-node-manager-update-owner": "flamoris_gpu_node_manager.updater",
+          }
+          for name, module in launchers.items():
+              raw = (
+                  "#!/usr/bin/python3.12 -I\nimport sys\nfrom pathlib import Path\n"
+                  "sys.path.insert(0,str(Path(__file__).resolve().parent.parent/'site-packages'))\n"
+                  f"from {module} import main\nmain()\n"
+              ).encode()
+              path = root / "bin" / name
+              path.write_bytes(raw)
+              path.chmod(0o555)
+          def encoded(value):
+              return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+          (root / "bundle-compatibility.json").write_bytes(encoded({
+              "compatibility_version": 1,
+              "journal_version": 1,
+              "control_store_version": 1,
+              "recovery_protocol_version": 1,
+              "package": "flamoris-gpu-node-manager",
+              "version": "1.2.0",
+          }))
+          dependencies = []
+          for dist in importlib.metadata.distributions(path=[str(vendor)]):
+              dependencies.append({
+                  "name": dist.metadata["Name"],
+                  "version": dist.version,
+                  "license": dist.metadata.get("License-Expression") or dist.metadata.get("License") or "See bundled dist-info licenses",
+              })
+          (root / "dependencies.json").write_bytes(encoded({
+              "format_version": 1,
+              "packages": sorted(dependencies, key=lambda x: x["name"].lower()),
+          }))
+          def digest(raw):
+              return "sha256:" + hashlib.sha256(raw).hexdigest()
+          files = []
+          for path in sorted(root.rglob("*")):
+              if path.is_symlink():
+                  raise SystemExit("symlink in candidate")
+              if path.is_file():
+                  raw = path.read_bytes()
+                  executable = bool(path.stat().st_mode & 0o111)
+                  path.chmod(0o555 if executable else 0o444)
+                  files.append({
+                      "path": str(path.relative_to(root)),
+                      "digest": digest(raw),
+                      "size": len(raw),
+                      "executable": executable,
+                  })
+          index = encoded({
+              "content_index_version": 1,
+              "platform": "linux/amd64",
+              "python": "3.12",
+              "files": files,
+          })
+          if len(index) > 1024 * 1024:
+              raise SystemExit("content index too large")
+          (root / "content-index.json").write_bytes(index)
+          archive = Path("candidate/flamoris-gpu-node-manager-1.2.0-linux-amd64.tar.gz")
+          with archive.open("wb") as out, gzip.GzipFile(fileobj=out, mode="wb", filename="", mtime=0) as gz, tarfile.open(fileobj=gz, mode="w", format=tarfile.PAX_FORMAT) as tar:
+              for path in sorted(root.rglob("*")):
+                  if path.is_file():
+                      info = tar.gettarinfo(str(path), str(path.relative_to(root)))
+                      info.uid = info.gid = 0
+                      info.uname = info.gname = ""
+                      info.mtime = 0
+                      info.mode = 0o555 if path.stat().st_mode & 0o111 else 0o444
+                      with path.open("rb") as stream:
+                          tar.addfile(info, stream)
+          summary = {
+              "format_version": 1,
+              "application": "flamoris-gpu-node-manager",
+              "release": "1.2.0",
+              "platform": "linux/amd64",
+              "source_revision": "2ca548dc8040bbda87074dba0460b50e1adb443e",
+              "artifact": archive.name,
+              "digest": digest(archive.read_bytes()),
+              "content_index_digest": digest(index),
+              "expanded_bytes": sum(x["size"] for x in files) + len(index),
+              "files": len(files) + 1,
+          }
+          Path("candidate/provenance.json").write_bytes(encoded(summary))
+          PY
+          candidate/root/bin/gpu-node-manager --help
+          candidate/root/bin/flamoris-gpu-node-manager-update-owner --help
+          sha256sum candidate/flamoris-gpu-node-manager-1.2.0-linux-amd64.tar.gz > candidate/SHA256SUMS
+          rm -rf candidate/root
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flamoris-gpu-node-manager-1.2.0-linux-amd64
+          path: candidate/
+          retention-days: 3
