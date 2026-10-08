@@ -33,10 +33,12 @@ jobs:
           root = Path("candidate/root")
           vendor = root / "site-packages"
           vendor.mkdir(parents=True)
+          wheels = sorted(str(path) for path in Path("dist/wheels").glob("*.whl"))
+          if not wheels:
+              raise SystemExit("wheelhouse is empty")
           subprocess.run([
               "python", "-m", "pip", "install", "--only-binary=:all:", "--no-index",
-              "--find-links", str(Path("dist/wheels").resolve()), "--no-compile",
-              "--target", str(vendor), "flamoris-gpu-node-manager==1.2.0"
+              "--no-deps", "--no-compile", "--target", str(vendor), *wheels
           ], check=True)
           for child in (vendor / "bin", root / "bin"):
               if child.exists():
