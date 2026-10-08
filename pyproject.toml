@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "flamoris-gpu-node-manager"
-version = "1.0.0"
+version = "1.2.0"
 license = "Apache-2.0"
 classifiers = ["Development Status :: 5 - Production/Stable"]
 description = "Safe, local runtime switching for the GPU node"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
+dependencies = ["flamoris-update-core[owner] @ https://github.com/flamoris-jp/flamoris-updater/archive/d9f010a92ff6e8a1e7a3b7fad8817850bdfb72cd.zip#subdirectory=packages/update-core",
   "mcp>=2.2,<3",
   "PyYAML>=6.0.2,<7",
 ]
@@ -25,6 +25,7 @@ dev = [
 ]
 
 [project.scripts]
+flamoris-gpu-node-manager-update-owner = "flamoris_gpu_node_manager.updater:main"
 gpu-node-manager = "flamoris_gpu_node_manager.cli:main"
 
 [tool.hatch.build.targets.wheel]
@@ -45,3 +46,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.11"
 strict = true
 packages = ["flamoris_gpu_node_manager"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
