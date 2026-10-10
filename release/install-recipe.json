@@ -1,0 +1,57 @@
+{
+  "application_id": "flamoris-gpu-node-manager",
+  "sql_files": [],
+  "recipe": {
+    "application_id": "flamoris-gpu-node-manager",
+    "release": "1.2.1",
+    "platform": "linux/amd64",
+    "compatible_from": [],
+    "dependencies": {},
+    "settings": [
+      {
+        "key": "PORT",
+        "label": "待受ポート",
+        "default": "8090",
+        "secret": false,
+        "required": false,
+        "generate": false,
+        "kind": "port"
+      }
+    ],
+    "downloads": {},
+    "generated": {
+      "manager.service": "[Unit]\nAfter=network.target\n[Service]\nExecStart=${root}/releases/${release}/bin/gpu-node-manager --config-dir ${root}/runtimes --lock-path ${root}/config/transition.lock serve --host 127.0.0.1 --port ${PORT}\nRestart=on-failure\n[Install]\nWantedBy=multi-user.target\n"
+    },
+    "application": {
+      "application_id": "flamoris-gpu-node-manager",
+      "release": "1.2.1",
+      "directories": [
+        {
+          "path": "${root}/config"
+        },
+        {
+          "path": "${root}/releases/${release}"
+        },
+        {
+          "path": "${root}/runtimes"
+        }
+      ],
+      "files": [],
+      "health_url": "http://127.0.0.1:${PORT}/api/status",
+      "kind": "native",
+      "python": "/usr/bin/python3.12",
+      "venv": "${root}/releases/${release}",
+      "wheels": [],
+      "units": [
+        {
+          "name": "flamoris-gpu-node-manager.web.service",
+          "source": {
+            "path": "${package}/manager.service",
+            "digest": "generated",
+            "private": false
+          }
+        }
+      ]
+    }
+  }
+}

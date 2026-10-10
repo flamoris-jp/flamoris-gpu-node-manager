@@ -9,7 +9,7 @@ entry point is idle. The shared lock serializes mutations across processes.
 
 ## Release status
 
-**Stable — v1.0** (Python package version `1.0.0`).
+**Stable — v1.x** (current Python package version `1.2.1`).
 
 The stable scope is configured Linux/systemd runtime lifecycle control, validated
 profiles, owned-process release, health checks, and the shared CLI/HTTP/MCP
@@ -157,7 +157,6 @@ Code in this repository is licensed under the [Apache License 2.0](LICENSE), unl
 
 AI models, model weights, datasets, media, and other non-code assets may use separate licenses. State their applicable licenses alongside those assets.
 
-## Updater entry release 1.2.0
+## Updater installation
 
-See [Updater compatibility](docs/UPDATER.md) for the implemented admission/Owner
-contract and pending signed release/private provisioning/real-host acceptance.
+See [repository-owned distribution](docs/UPDATER.md) for release 1.2.1, its catalog and post-install configuration. Publication and actual-host acceptance remain separately verified.
