@@ -1,3 +1,9 @@
+# Repository-owned distribution preparation — 2026-10-11
+
+The operator explicitly requested preparing this repository for individual Updater installation. Release 1.2.1 adds an app-owned installer definition, per-platform packaging, direct Release URLs and typed/profile validation. No centralized app distribution, live deployment, DB/data/credential change or provider invocation is performed. CI/publication and actual-host acceptance will be reported separately. This is a new-install recipe; no unverified compatibility edge is declared.
+
+---
+
 # Progress
 
 ## Updater adoption — 2026-10-08

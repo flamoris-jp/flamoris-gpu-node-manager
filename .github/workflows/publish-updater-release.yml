@@ -1,0 +1,74 @@
+name: Publish repository-owned Updater release
+on:
+  pull_request:
+    paths: ['.github/workflows/publish-updater-release.yml', 'release/**', 'scripts/*updater*.py', 'pyproject.toml', 'Dockerfile']
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-updater-release.yml', 'release/**', 'scripts/*updater*.py', 'pyproject.toml', 'Dockerfile']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: repository-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build complete Native offline wheelhouse
+        run: |
+          python -m pip wheel --wheel-dir dist/wheels .
+          python -m venv dist/offline
+          dist/offline/bin/python -m pip install --no-index --no-deps dist/wheels/*.whl
+          dist/offline/bin/python -m pip check
+          dist/offline/bin/gpu-node-manager --help
+          python scripts/package_updater_release.py --platform '${{ matrix.platform }}' --revision "$GITHUB_SHA" --wheels dist/wheels --output dist/release
+      - name: Validate with the actual Updater profile renderer
+        run: |
+          python -m pip install 'https://github.com/flamoris-jp/flamoris-updater/archive/96215ed53c7c7905ea7dcbcc42bb17d0f202e2ab.zip'
+          sudo "$(command -v python)" scripts/verify_updater_catalog.py dist/release/catalog-linux-${{ matrix.arch }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repository-release-${{ matrix.arch }}
+          path: dist/release/
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: repository-release-*
+          path: candidates/
+      - run: python scripts/package_updater_release.py --combine candidates --output distribution
+      - name: Publish this repository's immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api 'repos/'"$GITHUB_REPOSITORY"'/git/ref/tags/v1.2.1' > /dev/null 2>&1; then
+            echo 'Release tag already exists; refusing to replace it'
+            exit 1
+          fi
+          gh release create v1.2.1 distribution/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'flamoris-gpu-node-manager v1.2.1' --notes-file release/NOTES.md --latest
