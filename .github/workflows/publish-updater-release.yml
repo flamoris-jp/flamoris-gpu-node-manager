@@ -41,7 +41,7 @@ jobs:
       - name: Validate with the actual Updater profile renderer
         run: |
           python -m pip install 'https://github.com/flamoris-jp/flamoris-updater/archive/96215ed53c7c7905ea7dcbcc42bb17d0f202e2ab.zip'
-          python scripts/verify_updater_catalog.py dist/release/catalog-linux-${{ matrix.arch }}.json
+          sudo "$(command -v python)" scripts/verify_updater_catalog.py dist/release/catalog-linux-${{ matrix.arch }}.json
       - uses: actions/upload-artifact@v4
         with:
           name: repository-release-${{ matrix.arch }}
