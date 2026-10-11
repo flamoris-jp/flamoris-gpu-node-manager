@@ -3,7 +3,7 @@
   "sql_files": [],
   "recipe": {
     "application_id": "flamoris-gpu-node-manager",
-    "release": "1.2.1",
+    "release": "1.2.2",
     "platform": "linux/amd64",
     "compatible_from": [],
     "dependencies": {},
@@ -24,7 +24,7 @@
     },
     "application": {
       "application_id": "flamoris-gpu-node-manager",
-      "release": "1.2.1",
+      "release": "1.2.2",
       "directories": [
         {
           "path": "${root}/config"

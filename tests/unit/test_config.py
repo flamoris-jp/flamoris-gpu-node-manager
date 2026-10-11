@@ -231,3 +231,8 @@ def test_http_json_health_accepts_json_scalars(tmp_path: Path, expected: object)
     write_profile(tmp_path, data)
 
     assert load_registry(tmp_path).get("alpha").health.equals == expected
+
+
+def test_missing_profile_directory_is_still_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ProfileValidationError, match="does not exist"):
+        load_registry(tmp_path / "missing")

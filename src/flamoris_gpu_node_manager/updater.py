@@ -73,7 +73,7 @@ def quiesce(config: OwnerConfiguration) -> None:
 
 
 def factory(config: OwnerConfiguration) -> ApplicationOwner:
-    return ApplicationOwner(config, "flamoris-gpu-node-manager", "1.2.1", inspect_domain, quiesce)
+    return ApplicationOwner(config, "flamoris-gpu-node-manager", "1.2.2", inspect_domain, quiesce)
 
 
 def main() -> None:

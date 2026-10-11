@@ -38,10 +38,10 @@ jobs:
           dist/offline/bin/python -m pip check
           dist/offline/bin/gpu-node-manager --help
           python scripts/package_updater_release.py --platform '${{ matrix.platform }}' --revision "$GITHUB_SHA" --wheels dist/wheels --output dist/release
-      - name: Validate with the actual Updater profile renderer
+      - name: Install and start this release with the actual Updater
         run: |
-          python -m pip install 'https://github.com/flamoris-jp/flamoris-updater/archive/96215ed53c7c7905ea7dcbcc42bb17d0f202e2ab.zip'
-          sudo "$(command -v python)" scripts/verify_updater_catalog.py dist/release/catalog-linux-${{ matrix.arch }}.json
+          python -m pip install 'https://github.com/flamoris-jp/flamoris-updater/archive/83deb4d8687482d4c083ae8f0521c11ddd5eadfd.zip'
+          sudo env GITHUB_ACTIONS=true FLAMORIS_INSTALL_TEST_POSTGRES_DSN="${FLAMORIS_INSTALL_TEST_POSTGRES_DSN:-}" "$(command -v python)" scripts/verify_updater_catalog.py dist/release/catalog-linux-${{ matrix.arch }}.json --install
       - uses: actions/upload-artifact@v4
         with:
           name: repository-release-${{ matrix.arch }}
@@ -67,8 +67,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh api 'repos/'"$GITHUB_REPOSITORY"'/git/ref/tags/v1.2.1' > /dev/null 2>&1; then
+          if gh api 'repos/'"$GITHUB_REPOSITORY"'/git/ref/tags/v1.2.2' > /dev/null 2>&1; then
             echo 'Release tag already exists; refusing to replace it'
             exit 1
           fi
-          gh release create v1.2.1 distribution/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'flamoris-gpu-node-manager v1.2.1' --notes-file release/NOTES.md --latest
+          gh release create v1.2.2 distribution/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'flamoris-gpu-node-manager v1.2.2' --notes-file release/NOTES.md --latest

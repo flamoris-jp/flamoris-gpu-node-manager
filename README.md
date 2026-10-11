@@ -9,7 +9,7 @@ entry point is idle. The shared lock serializes mutations across processes.
 
 ## Release status
 
-**Stable — v1.x** (current Python package version `1.2.1`).
+**Stable — v1.x** (current Python package version `1.2.2`).
 
 The stable scope is configured Linux/systemd runtime lifecycle control, validated
 profiles, owned-process release, health checks, and the shared CLI/HTTP/MCP
@@ -159,4 +159,4 @@ AI models, model weights, datasets, media, and other non-code assets may use sep
 
 ## Updater installation
 
-See [repository-owned distribution](docs/UPDATER.md) for release 1.2.1, its catalog and post-install configuration. Publication and actual-host acceptance remain separately verified.
+See [repository-owned distribution](docs/UPDATER.md) for release 1.2.2, its catalog and post-install configuration. Publication and actual-host acceptance remain separately verified.
