@@ -13,19 +13,13 @@ from flamoris_updater_adapters.managed import Catalog, Manager, Start
 
 
 def command(*args):
-    return (
-        subprocess.check_output(args, stderr=subprocess.STDOUT, timeout=60)
-        .decode()
-        .strip()
-    )
+    return subprocess.check_output(args, stderr=subprocess.STDOUT, timeout=60).decode().strip()
 
 
 def verify(catalog_path, install):
     catalog = Catalog.model_validate_json(catalog_path.read_bytes())
     if install and (os.geteuid() != 0 or os.environ.get("GITHUB_ACTIONS") != "true"):
-        raise SystemExit(
-            "Actual installation is restricted to a disposable root CI runner"
-        )
+        raise SystemExit("Actual installation is restricted to a disposable root CI runner")
     for recipe in catalog.recipes:
         with tempfile.TemporaryDirectory(prefix="flamoris-install-check-") as temporary:
             root = Path(temporary)
@@ -39,9 +33,7 @@ def verify(catalog_path, install):
                 if source.stat().st_size > limit:
                     raise ValueError("Artifact exceeds its installer limit")
                 with source.open("rb") as stream:
-                    actual = (
-                        "sha256:" + hashlib.file_digest(stream, "sha256").hexdigest()
-                    )
+                    actual = "sha256:" + hashlib.file_digest(stream, "sha256").hexdigest()
                 if actual != expected:
                     raise ValueError("Artifact digest mismatch")
                 shutil.copyfile(source, destination)
@@ -57,14 +49,10 @@ def verify(catalog_path, install):
                     if not dsn:
                         raise ValueError("A disposable PostgreSQL service is required")
                     values[setting.key] = (
-                        dsn
-                        if setting.key == "ADMIN_DSN"
-                        else conninfo_to_dict(dsn)["host"]
+                        dsn if setting.key == "ADMIN_DSN" else conninfo_to_dict(dsn)["host"]
                     )
                 elif setting.key == "MODEL_ROOT":
-                    models = tempfile.TemporaryDirectory(
-                        prefix="flamoris-empty-models-"
-                    )
+                    models = tempfile.TemporaryDirectory(prefix="flamoris-empty-models-")
                     Path(models.name).chmod(0o755)
                     values[setting.key] = models.name
                 elif setting.required and not setting.default and not setting.generate:
@@ -87,12 +75,8 @@ def verify(catalog_path, install):
                     manager.run_job(job["job_id"])
                     stored = manager.journal.get("managed_job", job["job_id"])
                     if stored["phase"] != "awaiting_setup":
-                        raise ValueError(
-                            "Installer failed: " + stored.get("error", "unknown")
-                        )
-                    installed = manager.journal.get(
-                        "managed_app", recipe.application_id
-                    )
+                        raise ValueError("Installer failed: " + stored.get("error", "unknown"))
+                    installed = manager.journal.get("managed_app", recipe.application_id)
                     cfg = manager._profile(recipe, "cleanup-profile")
                     assert installed["release"] == recipe.release
                     manager.start_setup(recipe.application_id)
@@ -102,10 +86,7 @@ def verify(catalog_path, install):
                 assert cfg.applications[0].release == recipe.release
                 settings = json.loads(
                     (
-                        manager.state
-                        / "settings"
-                        / recipe.application_id
-                        / "values.json"
+                        manager.state / "settings" / recipe.application_id / "values.json"
                     ).read_bytes()
                 )
                 if recipe.application_id == "flamoris-studio":
