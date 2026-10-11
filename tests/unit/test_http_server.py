@@ -388,3 +388,21 @@ def test_browser_api_paths_resolve_relative_to_page_base(
     from urllib.parse import urljoin
 
     assert urljoin(page_url, f"./api/{api_path}") == expected_api_url
+
+
+def test_empty_profile_directory_can_start_web_without_runtime_activation(tmp_path) -> None:
+    from flamoris_gpu_node_manager.bootstrap import build_manager
+
+    manager = build_manager(tmp_path, lock_path=tmp_path / "transition.lock")
+    manager.reconstruct()
+    assert manager.list_runtimes() == ()
+    with running_server(manager) as base:
+        code, runtimes = request_json(f"{base}/api/runtimes")
+        status_code, status = request_json(f"{base}/api/status")
+        with urllib.request.urlopen(base, timeout=2) as response:
+            assert response.status == 200
+    assert code == 200
+    assert runtimes == []
+    assert status_code == 200
+    assert status["online"] is True
+    assert not (tmp_path / "transition.lock").exists()

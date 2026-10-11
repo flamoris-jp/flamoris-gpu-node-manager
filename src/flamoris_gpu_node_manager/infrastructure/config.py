@@ -266,8 +266,6 @@ def load_registry(directory: Path) -> RuntimeRegistry:
     profiles: list[RuntimeProfile] = []
     seen: dict[str, Path] = {}
     paths = sorted((*directory.glob("*.yaml"), *directory.glob("*.yml")))
-    if not paths:
-        raise ProfileValidationError(f"no runtime profiles found in: {directory}")
     for path in paths:
         try:
             raw = yaml.load(path.read_text(encoding="utf-8"), Loader=_StrictSafeLoader)
