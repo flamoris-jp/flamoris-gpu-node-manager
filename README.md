@@ -159,4 +159,6 @@ AI models, model weights, datasets, media, and other non-code assets may use sep
 
 ## Updater installation
 
+Before filling the form, read [input values and post-install setup](docs/FIRST_SETUP.md) for each field's purpose, value source, generation behavior and remaining app configuration.
+
 See [repository-owned distribution](docs/UPDATER.md) for release 1.2.2, its catalog and post-install configuration. Publication and actual-host acceptance remain separately verified.
